@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv*/
+*.egg-info/
+dist/
+build/
+
+# Tool caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Runtime data and model weights (never committed, plan R4)
+data/
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+
+# Secrets
+.env
+*.token
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reference model downloads (multi-GB, never committed)
+reference/
+workers/*/.venv/
+
+# Measurement outputs (images, logs) - the numbers live in docs/05_models.md
+workers/*/p0_out*/

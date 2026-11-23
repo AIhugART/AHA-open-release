@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>AHA open</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --muted:#5b6470; --line:#d9dde3; --accent:#2f5bea; --warn:#9a5b00; --bad:#b3261e; --ok:#1b7f4b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --card:#181b21; --ink:#eceff4; --muted:#9aa3b0; --line:#2b313b; --accent:#7b9cff; --warn:#e0a24a; --bad:#ff8a80; --ok:#6fd39a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 880px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } .sub { color:var(--muted); margin:0 0 16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:0 0 14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 3px; }
+  input, select, textarea, button { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+  textarea { width:100%; min-height:90px; resize:vertical; } input[type=text], input[type=password], select { width:100%; }
+  button { cursor:pointer; background:var(--accent); color:#fff; border-color:transparent; } button.secondary { background:var(--bg); color:var(--ink); border-color:var(--line); }
+  button:disabled { opacity:.5; cursor:not-allowed; } .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; } .row > * { flex:1 1 140px; }
+  .lora { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:3px 0; } .lora input[type=text] { width:64px; flex:0 0 auto; }
+  .badge { display:inline-block; font-size:12px; border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin-right:6px; }
+  .badge.bad { color:var(--bad); border-color:var(--bad); } .badge.ok { color:var(--ok); border-color:var(--ok); } .badge.warn { color:var(--warn); border-color:var(--warn); }
+  .note { color:var(--muted); font-size:13px; } .err { color:var(--bad); } .bar { height:8px; background:var(--line); border-radius:99px; overflow:hidden; margin:8px 0; }
+  .bar > i { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; } img, video { max-width:100%; border-radius:8px; border:1px solid var(--line); }
+  #checker { background-image: conic-gradient(#8883 25%, transparent 0 50%, #8883 0 75%, transparent 0); background-size: 16px 16px; display:inline-block; border-radius:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AHA open</h1>
+  <p class="sub">A small page that talks to this server's <code>/v1</code> API, like any other client. Nothing leaves this server.</p>
+
+  <section id="connect">
+    <label for="token">Access token</label>
+    <div class="row"><input id="token" type="password" autocomplete="off" placeholder="aho_…  (or open this page with: aha-open open)"><button id="save" class="secondary" style="flex:0 0 auto">Connect</button></div>
+    <div id="status" class="note" role="status"></div>
+  </section>
+
+  <section id="make" hidden>
+    <label for="model">Model</label><select id="model"></select>
+    <div id="modelinfo" class="note"></div>
+    <label for="task">What to do</label><select id="task"></select>
+    <label for="prompt">Prompt</label><textarea id="prompt" maxlength="8000"></textarea>
+    <div id="imagebox">
+      <div class="row">
+        <div><label for="size">Size</label><select id="size"></select></div>
+        <div><label for="seed">Seed (empty = random)</label><input id="seed" type="text" inputmode="numeric"></div>
+        <div><label for="steps">Steps</label><input id="steps" type="text" inputmode="numeric"></div>
+      </div>
+      <label id="transparentrow"><input id="transparent" type="checkbox"> Transparent background (RGBA)</label>
+      <div id="sizenote" class="note"></div>
+      <div id="lorabox" hidden>
+        <label>LoRA (optional)</label>
+        <div id="loralist"></div>
+        <div id="loranote" class="note"></div>
+      </div>
+    </div>
+    <div id="videobox" hidden>
+      <div class="row">
+        <div><label for="vratio">Aspect ratio</label><select id="vratio"></select></div>
+        <div><label for="vdur">Duration (s)</label><input id="vdur" type="text" inputmode="decimal"></div>
+        <div><label for="vedge">Short edge</label><select id="vedge"></select></div>
+      </div>
+    </div>
+    <div id="editbox" hidden>
+      <label for="files">Source image, then optional reference images</label><input id="files" type="file" accept="image/*" multiple>
+    </div>
+    <p><button id="go">Generate</button> <button id="cancel" class="secondary" hidden>Cancel</button></p>
+    <div class="bar" id="barwrap" hidden><i id="bar"></i></div>
+    <div id="jobline" class="note" role="status"></div>
+  </section>
+
+  <section id="out" hidden><div id="checker"><img id="img" alt="Result" hidden><video id="vid" controls hidden></video></div>
+    <p><a id="dl" download>Download</a> <span class="note" id="outinfo"></span></p></section>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let token = "", manifest = null, jobId = null, polling = false;
+try { token = sessionStorage.getItem("aho_token") || ""; } catch (e) { /* storage may be blocked; the page still works */ }
+// `aha-open open` puts the token in the URL fragment: it is never sent to the server and never reaches a log.
+const m = location.hash.match(/token=([^&]+)/);
+if (m) { token = decodeURIComponent(m[1]); try { sessionStorage.setItem("aho_token", token); } catch (e) {} history.replaceState(null, "", location.pathname); }
+$("token").value = token;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: "Bearer " + token } });
+  if (!res.ok) {
+    let e = {}; try { e = (await res.json()).error || {}; } catch (_) {}
+    const err = new Error(e.message || res.statusText); err.code = e.code || String(res.status); err.status = res.status; err.retry = e.retry_after_s; throw err;
+  }
+  return res;
+}
+const say = (el, text, cls = "") => { el.textContent = text; el.className = "note " + cls; };
+
+async function connect() {
+  token = $("token").value.trim();
+  try { sessionStorage.setItem("aho_token", token); } catch (e) {}
+  try {
+    manifest = await (await api("/v1/manifest")).json();
+  } catch (e) {
+    const why = { unauthorized: "That token is not accepted. Check it, or ask the operator for a new one.", forbidden: "The server refused this page (Host/Origin not allowed)." }[e.code];
+    say($("status"), why || ("Could not reach the server: " + e.message), "err"); $("make").hidden = true; return;
+  }
+  say($("status"), `Connected to ${manifest.provider.name} ${manifest.provider.version} (profile ${manifest.profile}).`);
+  $("make").hidden = false;
+  $("model").innerHTML = ""; for (const mod of manifest.models) $("model").add(new Option(mod.display_name + (mod.state === "ready" ? "" : " - " + mod.state), mod.id));
+  onModel();
+}
+
+function badge(text, cls) { const s = document.createElement("span"); s.className = "badge " + cls; s.textContent = text; return s; }
+function currentModel() { return manifest.models.find(x => x.id === $("model").value); }
+
+function onModel() {
+  const mod = currentModel(); if (!mod) return;
+  const info = $("modelinfo"); info.replaceChildren();
+  const lic = mod.license, cu = lic.commercial_use;
+  info.append(badge("state: " + mod.state, mod.state === "ready" ? "ok" : "warn"));
+  info.append(badge(lic.name + " - commercial use: " + cu, cu === "allowed" ? "ok" : cu === "not_allowed" ? "bad" : "warn"));
+  if (lic.required_ui_label) info.append(badge(lic.required_ui_label, ""));
+  if (lic.excluded_territories) info.append(badge("not licensed in: " + lic.excluded_territories.join(", "), "warn"));
+  if (mod.variant) { const v = mod.variants && mod.variants[mod.variant]; info.append(badge("variant: " + mod.variant + (v && v.recommended ? " (recommended here)" : ""), "")); }
+  if (mod.state_detail) info.append(document.createTextNode(" " + mod.state_detail));
+  if (lic.notes) { const p = document.createElement("div"); p.textContent = lic.notes; info.append(p); }
+  const tasks = $("task"); tasks.innerHTML = ""; for (const t of mod.tasks) tasks.add(new Option(t, t));
+  onTask();
+}
+
+function onTask() {
+  const mod = currentModel(), task = $("task").value, caps = mod.capabilities || {};
+  const video = task.startsWith("video."), edit = task === "image.edit";
+  $("imagebox").hidden = video; $("videobox").hidden = !video; $("editbox").hidden = !edit;
+  if (!video) {
+    $("size").innerHTML = "";
+    for (const s of caps.sizes || []) $("size").add(new Option(`${s.width} x ${s.height}  (${s.aspect_ratio}${s.tier ? ", " + s.tier : ""})`, `${s.width}x${s.height}`));
+    $("steps").value = caps.steps ? caps.steps.default : ""; $("transparentrow").hidden = !caps.rgba;
+    const native = (caps.sizes || []).some(s => s.tier === "native");
+    const lc = caps.loras, list = $("loralist"); list.replaceChildren();
+    $("lorabox").hidden = !(lc && lc.available && lc.available.length);
+    for (const l of (lc && lc.available) || []) {
+      const row = document.createElement("div"); row.className = "lora";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.dataset.id = l.id; cb.id = "lora_" + l.id;
+      const lab = document.createElement("label"); lab.htmlFor = cb.id; lab.style.margin = "0"; lab.style.color = "inherit"; lab.textContent = l.display_name;
+      const sc = document.createElement("input"); sc.type = "text"; sc.inputMode = "decimal"; sc.value = l.default_scale; sc.setAttribute("aria-label", "strength of " + l.display_name);
+      row.append(cb, lab, sc);
+      if (l.trigger) row.append(badge("trigger: " + l.trigger, ""));
+      if (l.license) row.append(badge(l.license, ""));
+      list.append(row);
+    }
+    $("loranote").textContent = lc && lc.available && lc.available.length ? `Up to ${lc.max} at once; strength ${lc.scale.min} to ${lc.scale.max}. Put the trigger words in your prompt.` : "";
+    $("sizenote").textContent = native ? "1k sizes are fast. Native sizes are the model's own and can need much more GPU memory (they may be very slow on a 24 GB card)." : "";
+  } else {
+    const fill = (el, list) => { el.innerHTML = ""; for (const v of list || []) el.add(new Option(v, v)); };
+    fill($("vratio"), caps.aspect_ratios); fill($("vedge"), caps.short_edges);
+    $("vdur").value = caps.durations_s ? caps.durations_s.min : "";
+  }
+}
+
+async function sha256Hex(buf) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map(b => b.toString(16).padStart(2, "0")).join(""); }
+
+async function uploadFile(file) {
+  const data = await file.arrayBuffer();
+  const made = await (await api("/v1/uploads", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bytes: data.byteLength, sha256: await sha256Hex(data), media_type: file.type || "image/png" }) })).json();
+  const size = made.part_size;
+  for (let n = 0, off = 0; off < data.byteLength; n++, off += size) {
+    await api(`/v1/uploads/${made.upload_id}/parts/${n}`, { method: "PUT", body: data.slice(off, off + size) });
+  }
+  await api(`/v1/uploads/${made.upload_id}/complete`, { method: "POST" });
+  return made.upload_id;
+}
+
+function intOrNull(v) { v = v.trim(); return v === "" ? null : Number(v); }
+
+async function generate() {
+  const task = $("task").value, body = { task, model: $("model").value, prompt: $("prompt").value, params: {}, inputs: [] };
+  $("go").disabled = true; $("out").hidden = true; say($("jobline"), "");
+  try {
+    if (task.startsWith("video.")) {
+      Object.assign(body.params, { aspect_ratio: $("vratio").value, short_edge: Number($("vedge").value) || undefined, duration_s: intOrNull($("vdur").value) ?? undefined });
+    } else {
+      const [w, h] = $("size").value.split("x").map(Number); Object.assign(body.params, { width: w, height: h });
+      const seed = intOrNull($("seed").value), steps = intOrNull($("steps").value);
+      if (seed !== null) body.params.seed = seed; if (steps !== null) body.params.steps = steps;
+      if (!$("transparentrow").hidden && $("transparent").checked) body.params.transparent = true;
+      const picked = [...document.querySelectorAll("#loralist .lora")].filter(r => r.querySelector("input[type=checkbox]").checked)
+        .map(r => ({ id: r.querySelector("input[type=checkbox]").dataset.id, scale: Number(r.querySelector("input[type=text]").value) }));
+      if (picked.length) body.params.loras = picked;
+    }
+    if (task === "image.edit") {
+      const files = [...$("files").files]; if (!files.length) throw Object.assign(new Error("Choose a source image first."), { code: "invalid_request" });
+      for (let i = 0; i < files.length; i++) { say($("jobline"), `Uploading ${i + 1}/${files.length}...`); body.inputs.push({ role: i ? "reference" : "source", upload_id: await uploadFile(files[i]) }); }
+    }
+    const job = await (await api("/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+    jobId = job.id; $("cancel").hidden = false; $("barwrap").hidden = false; poll();
+  } catch (e) { say($("jobline"), explain(e), "err"); $("go").disabled = false; }
+}
+
+function explain(e) {
+  const known = {
+    model_not_installed: "This model is not installed on the server.", unsupported_hardware: "This server's hardware cannot run that model.",
+    busy: `The server is busy; try again${e.retry ? " in " + Math.ceil(e.retry) + " s" : " shortly"}.`, unauthorized: "Your token is no longer accepted.",
+    invalid_request: e.message, upload_incomplete: "An upload did not arrive intact; try again.", forbidden: e.message,
+  };
+  return known[e.code] || `${e.code}: ${e.message}`;
+}
+
+async function poll() {
+  if (polling) return; polling = true;
+  try {
+    for (;;) {
+      const j = await (await api("/v1/jobs/" + jobId)).json(), p = j.progress || {};
+      $("bar").style.width = Math.round((p.fraction || 0) * 100) + "%";
+      const where = { queued: `Waiting in the queue${j.queue_position ? " (position " + j.queue_position + ")" : ""}...`, loading_model: "Loading the model (this can take a while)...", running: `Generating ${p.step || 0}/${p.total_steps || "?"}...` }[j.status];
+      if (where) say($("jobline"), where);
+      if (j.status === "succeeded") { await show(j); break; }
+      if (j.status === "failed") { say($("jobline"), explain(j.error || { code: "failed", message: "failed" }), "err"); break; }
+      if (j.status === "cancelled") { say($("jobline"), "Cancelled."); break; }
+      await new Promise(r => setTimeout(r, 600));
+    }
+  } catch (e) { say($("jobline"), explain(e), "err"); }
+  polling = false; $("go").disabled = false; $("cancel").hidden = true; $("barwrap").hidden = true;
+}
+
+async function show(j) {
+  const r = j.results[0], blob = await (await api(`/v1/jobs/${j.id}/result`)).blob(), url = URL.createObjectURL(blob);
+  $("out").hidden = false; $("img").hidden = r.kind !== "image"; $("vid").hidden = r.kind !== "video";
+  (r.kind === "image" ? $("img") : $("vid")).src = url;
+  $("dl").href = url; $("dl").download = `${j.id}.${r.media_type.split("/")[1]}`;
+  $("outinfo").textContent = `${r.width ? r.width + " x " + r.height + ", " : ""}${(r.bytes / 1024).toFixed(0)} KB${r.seed !== undefined ? ", seed " + r.seed : ""}${r.loras ? ", LoRA " + r.loras.map(l => l.id + "@" + l.scale).join(" + ") : ""}`;
+  say($("jobline"), "Done.");
+}
+
+$("save").onclick = connect; $("token").onkeydown = e => { if (e.key === "Enter") connect(); };
+$("model").onchange = onModel; $("task").onchange = onTask; $("go").onclick = generate;
+$("cancel").onclick = async () => { try { await api(`/v1/jobs/${jobId}/cancel`, { method: "POST" }); } catch (e) { say($("jobline"), explain(e), "err"); } };
+if (token) connect();
+</script>
+</body>
+</html>

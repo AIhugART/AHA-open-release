@@ -1,0 +1,291 @@
+openapi: 3.1.0
+info:
+  title: AHA provider API
+  version: "1.0"
+  description: >
+    Neutral /v1 API for AI providers that run image/video/audio models on local, LAN or remote hardware.
+    Source of truth for humans: docs/03_api_v1.md. This file is the machine-readable form.
+servers:
+  - url: http://127.0.0.1:8890
+security:
+  - bearer: []
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      security: []
+      responses:
+        "200": { description: Health, content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+  /v1/manifest:
+    get:
+      operationId: getManifest
+      responses:
+        "200": { description: Manifest, content: { application/json: { schema: { $ref: "#/components/schemas/Manifest" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/uploads:
+    post:
+      operationId: createUpload
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UploadRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Upload" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/uploads/{upload_id}/parts/{n}:
+    put:
+      operationId: putUploadPart
+      parameters:
+        - { name: upload_id, in: path, required: true, schema: { type: string } }
+        - { name: n, in: path, required: true, schema: { type: integer, minimum: 0 } }
+      requestBody:
+        required: true
+        content: { application/octet-stream: { schema: { type: string, format: binary } } }
+      responses:
+        "204": { description: Stored }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/uploads/{upload_id}/complete:
+    post:
+      operationId: completeUpload
+      parameters:
+        - { name: upload_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Complete, content: { application/json: { schema: { $ref: "#/components/schemas/Upload" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/jobs:
+    post:
+      operationId: createJob
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/JobRequest" } } }
+      responses:
+        "202": { description: Accepted, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /v1/jobs/{job_id}:
+    get:
+      operationId: getJob
+      parameters:
+        - { name: job_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Job, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/jobs/{job_id}/cancel:
+    post:
+      operationId: cancelJob
+      parameters:
+        - { name: job_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Job after cancel, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/jobs/{job_id}/result:
+    get:
+      operationId: getJobResult
+      parameters:
+        - { name: job_id, in: path, required: true, schema: { type: string } }
+        - { name: index, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: Range, in: header, required: false, schema: { type: string } }
+      responses:
+        "200": { description: Result bytes, content: { "*/*": { schema: { type: string, format: binary } } } }
+        "206": { description: Partial result bytes }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/enroll:
+    post:
+      operationId: createEnroll
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/EnrollRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Enroll" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/enroll/{enroll_id}:
+    get:
+      operationId: getEnroll
+      security: []
+      parameters:
+        - { name: enroll_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Enroll status, content: { application/json: { schema: { $ref: "#/components/schemas/EnrollStatus" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  responses:
+    Error:
+      description: Error
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            retry_after_s: { type: [number, "null"] }
+    Health:
+      type: object
+      required: [status, api_version]
+      properties:
+        status: { enum: [ok, degraded, starting] }
+        api_version: { type: string }
+        gpus:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              name: { type: string }
+              memory_total_mib: { type: integer }
+              active_model: { type: [string, "null"] }
+        queue:
+          type: object
+          properties: { queued: { type: integer }, running: { type: integer } }
+    Manifest:
+      type: object
+      required: [api_version, provider, profile, limits, models]
+      properties:
+        api_version: { type: string }
+        provider:
+          type: object
+          required: [name, version]
+          properties: { name: { type: string }, version: { type: string } }
+        profile: { enum: [local, lan, internet] }
+        limits:
+          type: object
+          properties:
+            part_size: { type: integer }
+            max_upload_bytes: { type: integer }
+            max_queue_per_client: { type: integer }
+            result_ttl_s: { type: integer }
+        optional:
+          type: object
+          properties: { enroll: { type: boolean } }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/Model" }
+    Model:
+      type: object
+      required: [id, display_name, tasks, state, license]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        engine: { type: string }
+        tasks:
+          type: array
+          items: { enum: [image.generate, image.edit, video.generate, audio.generate, speech.generate] }
+        state: { enum: [ready, loading, not_installed, unsupported_hardware, error] }
+        state_detail: { type: [string, "null"] }
+        capabilities: { type: object, additionalProperties: true }
+        variant: { type: [string, "null"], description: "Variant running on this server (models that offer several)." }
+        variants:
+          type: object
+          description: "Variants a model offers; recommended is advice for this server's hardware, never an automatic switch."
+          additionalProperties:
+            type: object
+            properties:
+              label: { type: string }
+              disk_gib: { type: number }
+              vram_gib: { type: object, additionalProperties: { type: [number, "null"] } }
+              selected: { type: boolean }
+              recommended: { type: boolean }
+        license:
+          type: object
+          required: [name, commercial_use]
+          properties:
+            name: { type: string }
+            commercial_use: { enum: [allowed, allowed_with_conditions, not_allowed, unknown] }
+            url: { type: string }
+            excluded_territories: { type: array, items: { type: string } }
+            required_ui_label: { type: string }
+            notes: { type: string }
+    UploadRequest:
+      type: object
+      required: [bytes, sha256, media_type]
+      properties:
+        bytes: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        media_type: { type: string }
+    Upload:
+      type: object
+      required: [upload_id, status]
+      properties:
+        upload_id: { type: string }
+        status: { enum: [open, complete] }
+        part_size: { type: integer }
+        bytes: { type: integer }
+    InputRef:
+      type: object
+      required: [role, upload_id]
+      properties:
+        role: { enum: [source, reference, mask, first_frame, last_frame, reference_video, reference_audio] }
+        upload_id: { type: string }
+    JobRequest:
+      type: object
+      required: [task, model]
+      properties:
+        task: { type: string }
+        model: { type: string }
+        prompt: { type: string }
+        inputs: { type: array, items: { $ref: "#/components/schemas/InputRef" } }
+        params: { type: object, additionalProperties: true }
+        client_request_id: { type: string }
+    Result:
+      type: object
+      required: [index, kind, media_type, bytes, sha256]
+      properties:
+        index: { type: integer }
+        kind: { enum: [image, video, audio] }
+        media_type: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        duration_s: { type: number }
+        fps: { type: number }
+        has_audio: { type: boolean }
+        seed: { type: integer }
+        loras:
+          type: array
+          description: "The exact adapter files that shaped this result (id, scale, sha256 of the file); never their paths."
+          items:
+            type: object
+            properties: { id: { type: string }, scale: { type: number }, sha256: { type: string } }
+        bytes: { type: integer }
+        sha256: { type: string }
+    Job:
+      type: object
+      required: [id, status, created_at]
+      properties:
+        id: { type: string }
+        status: { enum: [queued, loading_model, running, succeeded, failed, cancelled] }
+        progress:
+          type: object
+          properties: { step: { type: integer }, total_steps: { type: integer }, fraction: { type: number } }
+        queue_position: { type: [integer, "null"] }
+        results: { type: array, items: { $ref: "#/components/schemas/Result" } }
+        error:
+          type: [object, "null"]
+          properties: { code: { type: string }, message: { type: string } }
+        created_at: { type: string, format: date-time }
+    EnrollRequest:
+      type: object
+      required: [client_name]
+      properties: { client_name: { type: string }, client_kind: { type: string } }
+    Enroll:
+      type: object
+      required: [id, enroll_code, expires_at]
+      properties: { id: { type: string }, enroll_code: { type: string }, expires_at: { type: string } }
+    EnrollStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { enum: [pending, approved, denied, expired] }
+        token: { type: string }

@@ -1,0 +1,39 @@
+[project]
+name = "aha-open"
+version = "0.1.0.dev0"
+description = "Open-source service that runs open image/video models behind the neutral /v1 API"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "cryptography>=43",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "pyyaml>=6", "ruff>=0.6"]
+download = ["huggingface-hub>=1.0"]
+
+[project.scripts]
+aha-open = "aha_open.cli:main"
+
+# The worker sources live in `workers/` (each with its own pinned environment) and ship inside the wheel as
+# `aha_open/workers`, so `pip install aha-open` can create a worker environment. Dev-only files are not listed.
+[tool.setuptools]
+packages = ["aha_open", "aha_open.workers"]
+
+[tool.setuptools.package-dir]
+"aha_open.workers" = "workers"
+
+[tool.setuptools.package-data]
+aha_open = ["ui/*"]
+"aha_open.workers" = ["*/worker.py", "*/pyproject.toml", "*/uv.lock"]
+
+[tool.pytest.ini_options]
+testpaths = ["conformance", "tests"]
+markers = ["gpu: needs a real GPU and model weights (skipped by default)"]
+addopts = "-m 'not gpu'"
+
+[tool.ruff]
+line-length = 110

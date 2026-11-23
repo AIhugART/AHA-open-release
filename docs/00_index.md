@@ -1,0 +1,29 @@
+# AHA open — documentation map
+
+| File | Role | Read it when |
+|---|---|---|
+| [01_overview.md](01_overview.md) | Goals, boundaries, principles | First look |
+| [03_api_v1.md](03_api_v1.md) | The `/v1` API specification (OpenAPI is in [`../schema/`](../schema/)) | Writing a client or another `/v1` provider |
+| [04_architecture.md](04_architecture.md) | How AHA open works inside | Developing AHA open |
+| [05_models.md](05_models.md) | Models, hardware, licenses, measurements | Choosing a model, deploying |
+| [06_deployment.md](06_deployment.md) | The three deployment profiles | Installing |
+| [07_security.md](07_security.md) | Threat model and security rules | Opening AHA open to a LAN or the internet |
+| [../SECURITY.md](../SECURITY.md) | How to report a vulnerability | You found a security problem |
+| [../THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md) | Licenses of the packages AHA open installs | Checking compliance |
+
+(The file numbers keep the project's historical numbering; `02` is not part of the public documentation.)
+
+## Conventions
+
+- **Measured** and **inferred** are always kept apart; a number that has not been measured is written "to be measured".
+- Evidence levels: ✅ run for real (real model, real GPU, real network) · 🧪 code and tests only · ⬜ not checked.
+- Changing the API ⇒ update `03_api_v1.md` (and the OpenAPI file) in the same commit.
+- Adding a model ⇒ add a section to `05_models.md` with hardware measurements and the license quoted verbatim.
+- English is the canonical language. Vietnamese translations are in [`vi/`](vi/) and may lag behind.
+
+## Versions
+
+| Component | Version |
+|---|---|
+| API specification | `v1` (draft) |
+| AHA open | not released yet (`0.1.0.dev`) |
