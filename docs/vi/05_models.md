@@ -16,10 +16,10 @@
 | Bản INT8 (cộng đồng `ixim/Image21-INT8`) | Trọng số 18,632 GB (BF16 33,116 GB); đỉnh CUDA 12,09 GiB (BF16 19,08 GiB), RTX 5090, 1024², 40 bước, CPU offload | README INT8 |
 | Môi trường bản INT8 | Python 3.13, PyTorch 2.10.0+cu128, `transformers==5.17.0`, diffusers ghim commit `80c7ed2…` | README + requirements INT8 |
 | Hạn chế đã biết (bản INT8 tự ghi) | Sửa ảnh 1024px làm quá nét; thêm chữ thừa ở poster tiếng Trung; thay nền 2048px thất bại ở cả hai độ chính xác | README INT8 |
-| Trên RTX 3090 Ti 24 GB | ✅ đã đo, xem §3: INT8 1024² ≈ 40 s / 9,5 GiB; BF16 1024² chạy được (16,4 GiB) nhưng chậm; cỡ gốc 2048² tràn VRAM | §3 |
-| Biến thể AHA open cho chọn | `int8` (máy yếu, ~18 GB đĩa) và `bf16` (bản đầy đủ, ~33 GB đĩa, máy mạnh ≥ 40 GiB VRAM — ngưỡng này là suy luận, chưa đo). `aha-open models install` gợi ý theo GPU và nói lý do | `aha_open/hardware.py` |
+| Trên RTX 3090 Ti 24 GB | ✅ đã đo, xem §3: INT8 1024² ≈ 40 s / 9,5 GiB; cỡ gốc 2048² tràn VRAM | §3 |
+| Biến thể AHA open cung cấp | **Chỉ `int8`** (~18 GB đĩa, ~9,5 GiB VRAM ở 1024²). Bản BF16 đầy đủ (~33 GB) đã được đánh giá và bỏ (chủ sản phẩm, 2026-11-23): tốn gấp đôi đĩa, không nhanh hơn trên máy đo, chỉ có lợi trên GPU ≥ 40 GiB mà chưa từng có để đo. Số đo BF16 giữ ở §3 làm bằng chứng cho quyết định này | ghi chú thiết kế R25 |
 | Cỡ ảnh AHA open khai | 14 cỡ: 7 cỡ gốc (`tier: native`) + 7 cỡ ~1 MP (`tier: 1k`, mọi cạnh chia hết cho **32** — pipeline làm tròn xuống bội của 32: yêu cầu 1200×896 ra 1184×896). Chỉ cho `aspect_ratio` ⇒ hạng `1k` | plan R20 |
-| LoRA | Người vận hành đặt file `.safetensors` vào `<data_dir>/loras/` (`aha-open loras add FILE`); client chọn theo id + `scale` (≤ 3 cùng lúc, 0 < scale ≤ 2). ✅ chạy thật trên `int8` với hai LoRA thật (xem §3.2); LoRA có lớp lạ bị **từ chối**, không áp dụng một phần; `bf16`: chưa thử, không bị từ chối | plan R23 |
+| LoRA | Người vận hành đặt file `.safetensors` vào `<data_dir>/loras/` (`aha-open loras add FILE`); client chọn theo id + `scale` (≤ 3 cùng lúc, 0 < scale ≤ 2). ✅ chạy thật trên `int8` với hai LoRA thật (xem §3.2); LoRA có lớp lạ bị **từ chối**, không áp dụng một phần | plan R23 |
 | `mask` | **Không khai** (`mask: false`): README chỉ nói "separate masks", không có tham số nào; chưa có phép chạy nào cho thấy nó hoạt động ra sao | plan R21 |
 
 **Giấy phép — Qwen RESEARCH LICENSE AGREEMENT** (Release Date: September 20, 2026; toàn văn đã đọc; trích nguyên văn):
@@ -66,6 +66,19 @@ Manifest: `"license": {"name": "Qwen RESEARCH LICENSE", "commercial_use": "not_a
 Ánh xạ `/v1`: `minimax-h3-fl2va` (`video.generate`, `first_frame`, `last_frame`), `minimax-h3-ref2va`
 (`video.generate`, `max_reference`). Kết quả: mp4 có âm thanh (`has_audio: true`).
 
+### 2.0 Bản duy nhất AHA open sẽ dùng (chủ sản phẩm quyết 2026-11-23)
+
+Model đầy đủ (~133 GB) **bị bỏ**. Bản MiniMax H3 duy nhất AHA open sẽ hỗ trợ là bộ lượng tử hoá cộng đồng
+**`Abiray/Minimax-H3-nvfp4-INT4-INT8-Convrot`**. Đã đọc trang công khai và danh sách file của nó (2026-11-23; ✅ chỉ đọc, chưa tải, chưa chạy):
+revision `908eccad7e68751190d04c171956f163bfeed741` (sửa lần cuối 2026-08-15); `license: other` = giấy phép của model gốc (§2.1);
+file FL2VA: mixed INT4/INT8 14,81 GiB, INT8 19,53 GiB, NVFP4 11,67 GiB (NVFP4 chỉ cho GPU Blackwell); VAE video 4,85 GiB + audio 0,56 GiB.
+
+**Chưa biết (⬜), không coi là đã chốt:** các file là checkpoint ComfyUI một file của model đã **cắt tỉa (pruned)**, không phải thư mục diffusers;
+worker diffusers có nạp được không và cắt tỉa làm giảm chất lượng bao nhiêu thì chưa thử — đây là rủi ro chính của quyết định này.
+Chưa biết dùng file nào; bộ mã hoá văn bản trang đó nêu (`/text_encoders`) không có trong danh sách file ở revision đã đọc;
+VRAM đỉnh, thời gian mỗi clip, chất lượng trên RTX 3090 Ti: **cần đo** (vì vậy `min_vram_mib` của model này để trống).
+Con số "cần 15+ VRAM" trên trang là lời của bên thứ ba, chưa kiểm.
+
 ### 2.1 Giấy phép — "MiniMax H3 COMMUNITY LICENSE AGREEMENT"
 
 License date: August 2, 2026. Bên cấp phép: Nanonoble Pte. Ltd. Nguồn: `huggingface.co/MiniMaxAI/MiniMax-H3/raw/main/LICENSE`
@@ -102,11 +115,10 @@ song song, cho số thời gian lệch (BF16 lần 2: 268 s) nên **không** đ�
 | Qwen-Image-2.1 | INT8 | 2048² | **26,89 / 32,44 GiB** | 24,3 GiB | 33 s | **264 s** (1 lần) | **Vượt 24 GiB vật lý**: driver tràn sang RAM, chạy được nhưng chậm gấp ~6,5 lần |
 | Qwen-Image-2.1 | BF16 | 1024² | **16,37 / 16,54 GiB** | 24,3 GiB | 26 s | **95,1 s / 323,7 s** | Vừa VRAM nhưng bộ nhớ hệ thống căng (33 GB trọng số, RAM 31,7 GB). Lần 2 chậm hơn lần 1 ~3,4 lần, **lặp lại được khi máy rảnh**; nguyên nhân chưa tách được (giả thuyết: bộ đệm tệp bị đẩy ra khỏi RAM) |
 | Qwen-Image-2.1 | BF16 | 2048² | cần đo | | | cần đo | |
-| MiniMax H3 FL2VA | BF16 + offload | 4 s · 768p | cần đo | | | cần đo | **Hoãn** (chủ sản phẩm, 2026-11-23). Từ file index đã đọc: transformer 66,28 GB + encoder 66,71 GB ≈ 133 GB cho một checkpoint |
+| MiniMax H3 FL2VA | bản INT4/INT8 cộng đồng (§2.0) | 4 s · 768p | cần đo | | | cần đo | **Hoãn** (chủ sản phẩm, 2026-11-23). Bản đầy đủ ~133 GB bị bỏ |
 
-Đọc bảng: trên GPU 24 GB, **INT8 ở 1024² là lựa chọn thoải mái** (~40 s, 9,5 GiB). BF16 chạy được nhưng không nhanh hơn và
-tốn gấp đôi đĩa; bản BF16 phù hợp GPU lớn (≥ 40 GiB) nơi không cần offload — **chưa đo trên GPU như vậy** (không có
-phần cứng), nên ngưỡng 40 GiB ở `hardware.py` là suy luận từ kích thước trọng số (33 GB) + hoạt hoá, không phải số đo.
+Đọc bảng: trên GPU 24 GB, **INT8 ở 1024² là lựa chọn thoải mái** (~40 s, 9,5 GiB). Các dòng BF16 giữ lại làm bằng chứng cho việc bỏ
+model đầy đủ: chạy được nhưng không nhanh hơn và tốn gấp đôi đĩa. GPU ≥ 40 GiB chứa được mà không cần offload chưa từng có để đo.
 
 ### 3.1 Quét cỡ ảnh và LoRA qua gateway thật (✅ 2026-11-23, `int8`, seed 11, 40 bước)
 

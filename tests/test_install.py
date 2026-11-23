@@ -20,7 +20,8 @@ from aha_open.catalog import (
 from aha_open.cli import main
 from aha_open.config import Config, ModelConfig, load
 from aha_open.errors import ApiError
-from aha_open.hardware import BF16_RESIDENT_GIB, INT8_MIN_VRAM_GIB, recommend_variant
+from aha_open.hardware import INT8_MIN_VRAM_GIB, recommend_variant
+from aha_open.install import INSTALLABLE
 
 ROOT = Path(__file__).resolve().parents[1]
 QWEN = CATALOG["qwen-image-2.1"]
@@ -33,8 +34,7 @@ QWEN = CATALOG["qwen-image-2.1"]
     ("gpu_mib", "ram", "expected"),
     [
         (24564, 32.0, "int8"),  # the reference machine: RTX 3090 Ti
-        (49140, 64.0, "bf16"),  # a 48 GiB card holds the full model
-        (81920, 128.0, "bf16"),
+        (49140, 64.0, "int8"),  # a big card still gets int8: the full BF16 model is not offered
         (12288, 16.0, "int8"),
         (8192, 16.0, None),  # below what int8 was measured to need
         (None, 32.0, None),  # no GPU
@@ -47,16 +47,25 @@ def test_recommend_variant(gpu_mib, ram, expected):
     assert reason and reason[0].islower()  # one sentence the CLI can put after a colon
 
 
-def test_the_bf16_threshold_in_the_worker_matches_the_one_used_for_advice():
-    tree = ast.parse((ROOT / "workers" / "qwen_image" / "worker.py").read_text(encoding="utf-8"))
-    values = [n.value.value for n in ast.walk(tree) if isinstance(n, ast.Assign)
-              and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "BF16_RESIDENT_GIB"]
-    assert values == [BF16_RESIDENT_GIB]
+def test_qwen_offers_int8_only():
+    """The full BF16 model was dropped (plan R25): no catalog entry, install plan or worker path may bring it back."""
+    assert list(QWEN.variants) == ["int8"] and list(QWEN.min_vram_mib) == ["int8"]
+    assert list(INSTALLABLE["qwen-image-2.1"]["variants"]) == ["int8"]
+    source = (ROOT / "workers" / "qwen_image" / "worker.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    assert not [n for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == "BF16_RESIDENT_GIB"]
+    assert "unsupported variant" in source
 
 
-def test_min_vram_follows_the_measured_peaks():
+def test_min_vram_follows_the_measured_peak():
     assert QWEN.min_vram_mib["int8"] >= INT8_MIN_VRAM_GIB * 1024 > 9.47 * 1024  # measured int8 peak at 1024x1024
-    assert QWEN.min_vram_mib["bf16"] > 16.4 * 1024  # measured bf16 peak at 1024x1024
+
+
+def test_a_configuration_left_over_from_the_bf16_days_says_what_to_do(monkeypatch, tmp_path):
+    monkeypatch.setattr(catalog, "detect_gpus", lambda ttl_s=30.0: [{"index": 0, "name": "RTX", "memory_total_mib": 49140}])
+    mc = ModelConfig("qwen-image-2.1", "qwen_image", variant="bf16")
+    state, detail = catalog.model_state(Config(data_dir=tmp_path, models=[mc]), mc, QWEN)
+    assert state == "error" and "not offered" in detail and "models install qwen-image-2.1" in detail
 
 
 # ---------------------------------------------------------------------------------------------- sizes
@@ -110,15 +119,14 @@ def test_manifest_marks_the_recommended_variant(monkeypatch, tmp_path):
     entry = manifest_model(cfg, cfg.models[0], QWEN)
     assert entry["variant"] == "int8"
     assert entry["variants"]["int8"] == {**QWEN.variants["int8"], "selected": True, "recommended": True}
-    assert entry["variants"]["bf16"]["recommended"] is False and entry["variants"]["bf16"]["selected"] is False
-    assert entry["variants"]["bf16"]["disk_gib"] == 33 and entry["variants"]["int8"]["disk_gib"] == 18
+    assert list(entry["variants"]) == ["int8"] and entry["variants"]["int8"]["disk_gib"] == 18
 
 
 def test_each_variant_has_its_own_weights_directory(tmp_path):
     cfg = Config(data_dir=tmp_path)
     a = weights_dir(cfg, ModelConfig("qwen-image-2.1", "qwen_image", variant="int8"))
-    b = weights_dir(cfg, ModelConfig("qwen-image-2.1", "qwen_image", variant="bf16"))
-    assert a != b and a.parent == b.parent
+    b = weights_dir(cfg, ModelConfig("qwen-image-2.1", "qwen_image", variant="other"))
+    assert a != b and a.parent == b.parent  # the mechanism stays: a later model may offer a choice again
 
 
 # ---------------------------------------------------------------------------------------------- install command
@@ -144,7 +152,7 @@ def test_install_from_a_local_directory_records_the_choice(tmp_path):
     weights = tmp_path / "downloaded"
     weights.mkdir()
     (weights / "model_index.json").write_text("{}", encoding="utf-8")
-    argv = ["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "int8",
+    argv = ["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1",
             "--accept-license", "qwen-research", "--from-dir", str(weights), "--skip-env"]
     assert main(argv) == 0
     cfg = load(tmp_path)
@@ -159,10 +167,16 @@ def test_install_rejects_a_directory_that_is_not_the_model(tmp_path, capsys):
     _init(tmp_path)
     empty = tmp_path / "empty"
     empty.mkdir()
-    code = main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "bf16",
+    code = main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1",
                  "--accept-license", "qwen-research", "--from-dir", str(empty), "--skip-env"])
     assert code == 2 and "model_index.json" in capsys.readouterr().out
     assert load(tmp_path).model("qwen-image-2.1") is None
+
+
+def test_the_variant_option_is_gone(tmp_path):
+    _init(tmp_path)
+    with pytest.raises(SystemExit):  # argparse: unrecognized arguments
+        main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "bf16", "--accept-license", "qwen-research"])
 
 
 def test_deferred_and_unknown_models_are_refused(tmp_path, capsys):

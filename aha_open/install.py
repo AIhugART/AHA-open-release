@@ -22,7 +22,6 @@ INSTALLABLE = {
     "qwen-image-2.1": {
         "license_key": "qwen-research",
         "variants": {
-            "bf16": {"repo": "Qwen/Qwen-Image-2.1", "revision": "d26bb61231c349cf6b7896fa83353113880e1ba3", "disk_gib": 33},
             "int8": {"repo": "ixim/Image21-INT8", "revision": "099a9acacd0f1ae640ad4c740aed3af9fd12be19", "disk_gib": 18},
         },
     },
@@ -56,17 +55,12 @@ def install_model(cfg: Config, args: argparse.Namespace) -> int:
 
     gpus = detect_gpus(ttl_s=0)
     ram = detect_ram_gib()
-    suggestion, reason = recommend_variant(gpus[0]["memory_total_mib"] if gpus else None, ram)
-    variant = args.variant or suggestion
-    if variant is None:
-        _say(f"error: {reason}")
+    variant, reason = recommend_variant(gpus[0]["memory_total_mib"] if gpus else None, ram)
+    if variant is None and not args.from_dir:
+        _say(f"error: {reason}")  # --from-dir says the weights are already on disk; `aha-open doctor` checks the GPU afterwards
         return 2
-    if variant not in plan["variants"]:
-        _say(f"error: variant must be one of {', '.join(plan['variants'])}")
-        return 2
-    _say(("Suggested for this machine: " if not args.variant else "Chosen variant: ") + f"{variant} - {reason if variant == suggestion else 'your choice'}")
-    if args.variant and suggestion and variant != suggestion:
-        _say(f"  note: {suggestion} is the suggestion for this machine ({reason}).")
+    variant = variant or next(iter(plan["variants"]))
+    _say(f"Installing {variant}: {reason}")
 
     info = plan["variants"][variant]
     target = None

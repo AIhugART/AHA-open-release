@@ -1,4 +1,4 @@
-"""What this machine can run, and which model variant to suggest (plan: variant choice, 2026-11-23).
+"""What this machine can run, and which model variant to use (Qwen-Image-2.1 is offered as INT8 only).
 
 Every threshold below is taken from a measurement recorded in docs/05_models.md section 3 (RTX 3090 Ti, 24 GiB); a
 number that has not been measured is not used to refuse anything. Nothing here imports torch.
@@ -13,9 +13,6 @@ from pathlib import Path
 
 # Qwen-Image-2.1 on the 24 GiB reference GPU, 1024x1024, 40 steps (docs/05_models.md section 3).
 INT8_MIN_VRAM_GIB = 10.0  # measured peak 9.47 GiB allocated / 9.53 GiB reserved
-# Keep the BF16 pipeline entirely on the GPU only when the weights (~33 GiB) plus activations fit. Must equal
-# BF16_RESIDENT_GIB in workers/qwen_image/worker.py (tests/test_install.py checks that).
-BF16_RESIDENT_GIB = 40
 
 
 def detect_ram_gib() -> float | None:
@@ -53,12 +50,7 @@ def recommend_variant(gpu_mib: int | None, ram_gib: float | None) -> tuple[str |
     if not gpu_mib:
         return None, "no NVIDIA GPU was found, so Qwen-Image-2.1 cannot run on this machine"
     gpu_gib = gpu_mib / 1024
-    if gpu_gib >= BF16_RESIDENT_GIB:
-        return "bf16", f"your GPU has {gpu_gib:.0f} GiB: the full model fits on it (best quality, no CPU offload, about 33 GB of disk)"
     if gpu_gib >= INT8_MIN_VRAM_GIB:
         ram = f" and {ram_gib:.0f} GiB of RAM" if ram_gib else ""
-        return "int8", (
-            f"your GPU has {gpu_gib:.0f} GiB{ram}: int8 (about 18 GB of disk, ~9.5 GiB of GPU memory at 1024x1024) is the "
-            "comfortable choice; bf16 (about 33 GB) would have to swap parts of the model in and out of the GPU"
-        )
-    return None, f"your GPU has {gpu_gib:.0f} GiB; Qwen-Image-2.1 needs at least {INT8_MIN_VRAM_GIB:.0f} GiB even in int8"
+        return "int8", f"your GPU has {gpu_gib:.0f} GiB{ram}: int8 needs about 18 GB of disk and ~9.5 GiB of GPU memory at 1024x1024"
+    return None, f"your GPU has {gpu_gib:.0f} GiB; Qwen-Image-2.1 needs at least {INT8_MIN_VRAM_GIB:.0f} GiB"

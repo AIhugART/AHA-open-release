@@ -96,7 +96,7 @@ MiniMax example:
   "available": [{"id", "display_name", "default_scale", "bytes", "trigger?", "license?", "notes?"}]}`. `available` lists files the
   **operator placed on the server** (clients do not upload LoRAs through `/v1`), re-read on every manifest call — adding
   a file needs no restart. A path is never exposed.
-- A model with several variants (e.g. Qwen `bf16`/`int8`) also declares `variant` (the variant running on this server) and
+- A model that offers variants (the field is general; Qwen-Image-2.1 offers `int8` only) also declares `variant` (the variant running on this server) and
   `variants` = `{ "<name>": {"label", "disk_gib", "vram_gib": {"1k", "native"}, "selected", "recommended"} }`.
   `recommended` is a hint derived from the server's hardware (display only; the server never switches variant by itself).
   `vram_gib` holds measured numbers (`null` = not measured yet).

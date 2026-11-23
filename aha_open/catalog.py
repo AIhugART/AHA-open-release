@@ -44,11 +44,10 @@ QWEN_SIZES = [
 # LoRA adapters the operator put in <data_dir>/loras (aha_open/loras.py). Clients pick them by id from the manifest.
 LORA_CAPS = {"max": 3, "scale": {"min": 0.0, "max": 2.0, "default": 1.0}, "format": "safetensors"}
 
-# What each Qwen variant costs, measured on one RTX 3090 Ti 24 GiB (docs/05_models.md section 3). None = not measured yet.
+# What Qwen-Image-2.1 costs (INT8 is the only variant offered; the full BF16 model was dropped, plan R25), measured on one RTX 3090 Ti 24 GiB (docs/05_models.md section 3). None = not measured yet.
 QWEN_VARIANTS = {
     # "loras": True = a real LoRA run succeeded on this variant; None = not tried (nothing is refused); False = refused.
-    "int8": {"label": "int8 - smaller GPUs", "disk_gib": 18, "vram_gib": {"1k": 9.5, "native": 26.9}, "loras": True},
-    "bf16": {"label": "bf16 - full model, strong GPUs", "disk_gib": 33, "vram_gib": {"1k": 16.4, "native": None}, "loras": None},
+    "int8": {"label": "int8", "disk_gib": 18, "vram_gib": {"1k": 9.5, "native": 26.9}, "loras": True},
 }
 
 
@@ -134,7 +133,7 @@ CATALOG: dict[str, ModelSpec] = {
                 "url": "https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE",
                 "notes": "Research or evaluation use only; a separate license is needed for commercial use.",
             },
-            min_vram_mib={"int8": 10240, "bf16": 17408},  # measured peaks at 1024x1024 plus headroom (hardware.py)
+            min_vram_mib={"int8": 10240},  # measured peak at 1024x1024 plus headroom (hardware.py)
             variants=QWEN_VARIANTS,
         ),
         ModelSpec(
@@ -162,7 +161,9 @@ CATALOG: dict[str, ModelSpec] = {
                 "url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE",
                 "notes": "Not licensed in the EU, UK, South Korea or the US; extra duties when offered as a hosted service.",
             },
-            min_vram_mib={"bf16": 90000},
+            # Only the community INT4/INT8 build will be used, never the ~133 GB full model (docs/05_models.md section 2.0).
+            # Its VRAM need has not been measured, and an unmeasured number must not refuse anything: empty on purpose.
+            min_vram_mib={},
             requires_hosted_obligations=True,
         ),
     ]
@@ -239,6 +240,11 @@ def model_state(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool = F
     """(state, detail) for one configured model on this machine."""
     if spec.requires_hosted_obligations and cfg.profile == "internet" and cfg.hosted_service_obligations != "accepted":
         return "error", "hosted_service_obligations_not_accepted"
+    if spec.variants and mc.variant and mc.variant not in spec.variants:
+        return "error", (
+            f"variant {mc.variant!r} is not offered any more (only: {', '.join(spec.variants)}); "
+            f"run `aha-open models install {spec.id} --accept-license <key>`"
+        )
     if spec.family != "fake":
         if worker_python(cfg, mc) is None or not (WORKERS_DIR / mc.worker / "worker.py").exists():
             return "not_installed", "worker environment not found"

@@ -6,14 +6,13 @@
 ## 0. Common requirements
 
 - An NVIDIA GPU + CUDA driver (macOS/Apple Silicon is not part of v1; to be measured).
-- Disk: ~19 GB for Qwen INT8 (~33 GB for BF16); MiniMax H3 is much larger — see [05_models.md](05_models.md).
+- Disk: ~19 GB for Qwen INT8. MiniMax H3 (community quantized build only, not installable yet) needs about 15–20 GB for the model plus ~5 GB of VAEs and a text encoder — see [05_models.md](05_models.md) §2.0.
 - Python + [`uv`](https://docs.astral.sh/uv/) (AHA open creates a separate venv for each worker from the worker's lock file).
 
 ```bash
 uv sync --extra download    # from a source checkout (not on PyPI yet); or install a wheel built with `uv build`
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research            # suggests int8 or bf16 from your GPU
-# or choose: --variant int8 (weaker machine, ~18 GB) | --variant bf16 (strong machine, ~33 GB)
+aha-open models install qwen-image-2.1 --accept-license qwen-research            # the INT8 build, ~18 GB
 # MiniMax (when its worker ships): also asks you to confirm you are not in an excluded territory
 # aha-open models install minimax-h3-fl2va --accept-license minimax-h3-community --confirm-territory
 aha-open doctor

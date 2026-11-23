@@ -313,7 +313,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("init", help="create the data directory and a default config.toml")
     s.add_argument("--profile", choices=["local", "lan", "internet"], default="local")
-    s.add_argument("--model", action="append", help="model id, optionally id:variant (repeatable)")
+    s.add_argument("--model", action="append", help="model id (repeatable)")
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_init)
 
@@ -329,7 +329,6 @@ def build_parser() -> argparse.ArgumentParser:
     ms.add_parser("list")
     i = ms.add_parser("install", help="install a model (downloads weights, prepares its worker environment)")
     i.add_argument("model")
-    i.add_argument("--variant", help="bf16 (strong GPU, best quality) or int8 (smaller GPU); omitted: recommended for this machine")
     i.add_argument("--accept-license", help="license key you accept for this model (see the message printed without it)")
     i.add_argument("--confirm-territory", action="store_true", help="confirm you are not in a territory the license excludes")
     i.add_argument("--from-dir", help="use weights already on disk instead of downloading")

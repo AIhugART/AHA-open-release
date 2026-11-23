@@ -15,13 +15,12 @@ video tới AHA open và nhận kết quả về kho của nó, về Photoshop (
 ```bash
 uv sync --extra dev --extra download
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research   # gợi ý bản bf16/int8 theo GPU của bạn
+aha-open models install qwen-image-2.1 --accept-license qwen-research   # bản INT8, ~18 GB
 aha-open serve                                                          # nghe 127.0.0.1:8890
 aha-open open                                                           # mở trang web, không cần dán token
 ```
 
-Qwen-Image-2.1 có **hai biến thể** để bạn chọn bằng `--variant`: `int8` (~18 GB đĩa, ~9,5 GiB VRAM ở 1024², hợp GPU
-12–24 GB) và `bf16` (bản đầy đủ ~33 GB đĩa, hợp GPU ≥ 40 GiB). Không truyền `--variant` thì lệnh cài tự gợi ý và nói lý do.
+Qwen-Image-2.1 chỉ cung cấp **bản INT8** (~18 GB đĩa, ~9,5 GiB VRAM ở 1024², hợp GPU 12–24 GB); bản BF16 đầy đủ không được hỗ trợ.
 
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — file được kiểm (chỉ safetensors) rồi
 hiện trong manifest/`/ui/`; client chọn bằng `params.loras`.
@@ -31,7 +30,7 @@ hiện trong manifest/`/ui/`; client chọn bằng `params.loras`.
 | Model | Việc | Ghi chú |
 |---|---|---|
 | Qwen-Image-2.1 | Tạo ảnh từ chữ, sửa ảnh (≤10 ảnh tham chiếu), ảnh trong suốt RGBA, LoRA | Giấy phép phi thương mại (Qwen Research License) |
-| MiniMax H3 | Tạo video có âm thanh stereo: từ chữ, từ khung đầu/cuối, từ tham chiếu ảnh/video/âm thanh | Phải đo phần cứng trước; có thể cần nhiều GPU |
+| MiniMax H3 | Tạo video có âm thanh stereo | **Hoãn**; chỉ dự kiến dùng bản lượng tử hoá cộng đồng (không dùng bản đầy đủ ~133 GB), chưa thử; xem [docs/05_models.md](docs/vi/05_models.md) §2.0 |
 
 ## Ba cách chạy
 

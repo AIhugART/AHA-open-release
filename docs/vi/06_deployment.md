@@ -6,13 +6,12 @@
 ## 0. Yêu cầu chung
 
 - GPU NVIDIA + driver CUDA (macOS/Apple Silicon: chưa nằm trong v1, cần đo).
-- Dung lượng: ~19 GB cho Qwen INT8 (~33 GB BF16); MiniMax H3 lớn hơn nhiều — xem [05_models.md](05_models.md).
+- Dung lượng: ~19 GB cho Qwen INT8. MiniMax H3 (chỉ bản lượng tử hoá cộng đồng, chưa cài được) cần khoảng 15–20 GB cho model cộng ~5 GB VAE và một bộ mã hoá văn bản — xem [05_models.md](05_models.md) §2.0.
 - Python + `uv` (AHA open tự tạo venv riêng cho từng worker).
 
 ```bash
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research            # tự gợi ý int8 hoặc bf16 theo GPU
-# hoặc chọn: --variant int8 (máy yếu, ~18 GB) | --variant bf16 (máy mạnh, ~33 GB)
+aha-open models install qwen-image-2.1 --accept-license qwen-research            # bản INT8, ~18 GB
 # MiniMax (nếu P0 cho phép): đòi thêm xác nhận không ở lãnh thổ bị loại trừ
 # aha-open models install minimax-h3-fl2va --accept-license minimax-h3-community --confirm-territory
 aha-open doctor

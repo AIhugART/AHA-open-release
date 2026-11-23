@@ -3,8 +3,7 @@
 Speaks the worker protocol of docs/04_architecture.md section 2 on stdin/stdout. Uses only public diffusers /
 transformers / bitsandbytes APIs; no code is copied from the Qwen or community repositories (plan R4, R21).
 
-Memory plan: the INT8 variant always uses model-level CPU offload. The BF16 variant keeps everything on the GPU when
-there is room for it and falls back to model-level CPU offload otherwise (decided from the GPU's real memory).
+Memory plan: the INT8 model always uses model-level CPU offload (the full BF16 model is not offered, plan R25).
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ from types import MethodType
 
 inbox: queue.Queue[dict] = queue.Queue()
 cancelled: set[str] = set()
-BF16_RESIDENT_GIB = 40  # weights (~33 GB) plus activations: below this the pipeline is offloaded component by component
 RGBA_PREFIX = "This is an RGBA image with transparency. "
 RGBA_SUFFIX = " The image has alpha channel and the background is transparent."
 
@@ -127,30 +125,24 @@ def load_pipeline(variant: str, weights: str, gpu: int):
     import torch
     from diffusers import QwenImage21Pipeline
 
-    path = str(weights)
-    total_gib = torch.cuda.get_device_properties(gpu).total_memory / 2**30
-    if variant == "int8":
-        from diffusers import QwenImage21Transformer2DModel
-        from transformers import Qwen3VLForConditionalGeneration
+    if variant != "int8":
+        raise ValueError(f"unsupported variant {variant!r}: only int8 is offered")
+    from diffusers import QwenImage21Transformer2DModel
+    from transformers import Qwen3VLForConditionalGeneration
 
-        components = {}
-        for name, cls in (("transformer", QwenImage21Transformer2DModel), ("text_encoder", Qwen3VLForConditionalGeneration)):
-            part = cls.from_pretrained(path, subfolder=name, dtype=torch.bfloat16, local_files_only=True)
-            if not getattr(part, "is_loaded_in_8bit", False):
-                raise RuntimeError(f"{name} in {path} is not a saved bitsandbytes INT8 component")
-            keep_int8_state_on_device(part)
-            part.to("cpu")  # one component at a time, so the load never peaks on the GPU
-            torch.cuda.empty_cache()
-            components[name] = part
-        pipe = QwenImage21Pipeline.from_pretrained(path, dtype=torch.bfloat16, local_files_only=True, **components)
-        for name in ("text_encoder", "transformer"):
-            keep_int8_state_on_device(getattr(pipe, name))
-        pipe.enable_model_cpu_offload(gpu_id=gpu)
-        return pipe, "model_cpu_offload"
-    pipe = QwenImage21Pipeline.from_pretrained(path, torch_dtype=torch.bfloat16, local_files_only=True)
-    if total_gib >= BF16_RESIDENT_GIB:
-        pipe.to(f"cuda:{gpu}")
-        return pipe, "resident"
+    path = str(weights)
+    components = {}
+    for name, cls in (("transformer", QwenImage21Transformer2DModel), ("text_encoder", Qwen3VLForConditionalGeneration)):
+        part = cls.from_pretrained(path, subfolder=name, dtype=torch.bfloat16, local_files_only=True)
+        if not getattr(part, "is_loaded_in_8bit", False):
+            raise RuntimeError(f"{name} in {path} is not a saved bitsandbytes INT8 component")
+        keep_int8_state_on_device(part)
+        part.to("cpu")  # one component at a time, so the load never peaks on the GPU
+        torch.cuda.empty_cache()
+        components[name] = part
+    pipe = QwenImage21Pipeline.from_pretrained(path, dtype=torch.bfloat16, local_files_only=True, **components)
+    for name in ("text_encoder", "transformer"):
+        keep_int8_state_on_device(getattr(pipe, name))
     pipe.enable_model_cpu_offload(gpu_id=gpu)
     return pipe, "model_cpu_offload"
 

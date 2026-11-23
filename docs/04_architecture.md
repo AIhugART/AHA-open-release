@@ -87,7 +87,7 @@ enroll = true                # internet: false by default
 [[models]]
 id = "qwen-image-2.1"
 worker = "qwen_image"
-variant = "int8"             # int8 | bf16
+variant = "int8"             # int8 is the only variant Qwen offers
 gpu = 0
 
 [[models]]
@@ -102,7 +102,7 @@ enabled = false              # enable after the hardware has been measured
 | Command | What it does |
 |---|---|
 | `aha-open init --profile local` | Create `data_dir` and a default configuration |
-| `aha-open models install qwen-image-2.1 --variant int8 --accept-license qwen-research` | Create the worker venv from its lock file, download the weights; refuses without `--accept-license` |
+| `aha-open models install qwen-image-2.1 --accept-license qwen-research` | Create the worker venv from its lock file, download the weights; refuses without `--accept-license` |
 | `aha-open models list` | Models, state, license |
 | `aha-open serve` | Run the gateway |
 | `aha-open open` | Open the bundled web page in a browser |

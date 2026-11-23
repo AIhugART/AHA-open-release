@@ -17,10 +17,10 @@
 | INT8 build (community `ixim/Image21-INT8`) | 18.632 GB of weights (BF16 33.116 GB); CUDA peak 12.09 GiB (BF16 19.08 GiB), RTX 5090, 1024², 40 steps, CPU offload | INT8 README |
 | INT8 environment | Python 3.13, PyTorch 2.10.0+cu128, `transformers==5.17.0`, diffusers pinned to commit `80c7ed2…` | INT8 README + requirements |
 | Known limits (stated by the INT8 build) | Editing at 1024px over-sharpens; adds stray text on Chinese posters; replacing a background at 2048px fails at both precisions | INT8 README |
-| On an RTX 3090 Ti 24 GB | ✅ measured, see §3: INT8 1024² ≈ 40 s / 9.5 GiB; BF16 1024² runs (16.4 GiB) but slowly; native 2048² overflows VRAM | §3 |
-| Variants AHA open lets you choose | `int8` (weaker machines, ~18 GB of disk) and `bf16` (the full model, ~33 GB of disk, strong machines ≥ 40 GiB of VRAM — this threshold is inferred, not measured). `aha-open models install` suggests one from the GPU and says why | `aha_open/hardware.py` |
+| On an RTX 3090 Ti 24 GB | ✅ measured, see §3: INT8 1024² ≈ 40 s / 9.5 GiB; native 2048² overflows VRAM | §3 |
+| Variant AHA open offers | **`int8` only** (~18 GB of disk, ~9.5 GiB of VRAM at 1024²). The full BF16 model (~33 GB) was evaluated and dropped (project owner, 2026-11-23): it needs twice the disk, was not faster on the measuring machine, and only pays off on GPUs ≥ 40 GiB that were never available to measure. The BF16 measurements stay in §3 as the evidence for that decision | design note R25 |
 | Sizes AHA open declares | 14 sizes: 7 native (`tier: native`) + 7 of ~1 MP (`tier: 1k`, every side divisible by **32** — the pipeline rounds down to a multiple of 32: asking for 1200×896 returns 1184×896). Giving only `aspect_ratio` ⇒ the `1k` tier | design note R20 |
-| LoRA | The operator puts a `.safetensors` file in `<data_dir>/loras/` (`aha-open loras add FILE`); the client chooses by id + `scale` (≤ 3 at a time, 0 < scale ≤ 2). ✅ run for real on `int8` with two real LoRAs (see §3.2); a LoRA with a layer the model lacks is **rejected**, never half-applied; `bf16`: not tried, not refused | design note R23 |
+| LoRA | The operator puts a `.safetensors` file in `<data_dir>/loras/` (`aha-open loras add FILE`); the client chooses by id + `scale` (≤ 3 at a time, 0 < scale ≤ 2). ✅ run for real on `int8` with two real LoRAs (see §3.2); a LoRA with a layer the model lacks is **rejected**, never half-applied | design note R23 |
 | `mask` | **Not declared** (`mask: false`): the README only says "separate masks" and gives no parameter; no run has shown how it behaves | design note R21 |
 
 **License — Qwen RESEARCH LICENSE AGREEMENT** (Release Date: September 20, 2026; read in full; quoted verbatim):
@@ -65,10 +65,35 @@ Manifest: `"license": {"name": "Qwen RESEARCH LICENSE", "commercial_use": "not_a
 | Environment | diffusers pinned to commit `f53d552…`, `transformers>=4.57`, torch ≥ 2.4 | requirements |
 | "H3-Context-IR" prompt expansion | Calls **MiniMax's cloud API** (needs a token), does not run locally. AHA open does **not** enable it by default — sending prompts to a third party goes against the data principle | script `full-2k-t2va-h3-context-ir.sh` |
 | Encoder | Qwen3-VL-32B (Apache-2.0) | LICENSE notes |
-| On an RTX 3090 Ti 24 GB | **to be measured** — inferred: hard to run without offload/heavy quantization (33B transformer + 32B encoder) | |
+| On an RTX 3090 Ti 24 GB | **to be measured** — see §2.0 for the build that will be used | |
 
 `/v1` mapping: `minimax-h3-fl2va` (`video.generate`, `first_frame`, `last_frame`), `minimax-h3-ref2va`
 (`video.generate`, `max_reference`). Result: an mp4 with audio (`has_audio: true`).
+
+### 2.0 The one build AHA open will use (decided 2026-11-23, project owner)
+
+The full model (~133 GB: transformer 66.28 GB + encoder 66.71 GB, read from the index file) is **dropped**. The only MiniMax H3
+build AHA open will support is the community quantized collection **`Abiray/Minimax-H3-nvfp4-INT4-INT8-Convrot`**.
+What was read from its public page and file list (2026-11-23; ✅ read, nothing downloaded or run):
+
+| Item | Value |
+|---|---|
+| Revision looked at | `908eccad7e68751190d04c171956f163bfeed741` (last modified 2026-08-15) |
+| License field | `license: other`, `license_name: minimax-h3-community-license-agreement` (the base model's license, §2.1) |
+| Base model | `MiniMaxAI/MiniMax-H3`, `base_model_relation: quantized` |
+| FL2VA files | `…FL2VA_pruned_mixed_int4_int8_convrot.safetensors` 14.81 GiB · `…_pruned_int8_convrot` 19.53 GiB · `…_pruned_nvfp4` 11.67 GiB (NVFP4 needs a Blackwell GPU) |
+| Ref2VA files | `…Ref2VA_pruned_mixed_int4_int8_convrot` 14.06 GiB · `…_pruned_int8_convrot` 19.53 GiB · `…_pruned_nvfp4` 11.67 GiB · `…_nvfp4_mixed` 22.76 GiB |
+| VAEs (required by every build) | video 4.85 GiB + audio 0.56 GiB |
+| Page claims (third party, **not verified**) | the mixed INT4/INT8 file "requires 15+ VRAM (~15.5 GB)"; INT8 "24GB+ VRAM"; text encoders in `/text_encoders` (15.0–27.1 GB) |
+
+**Not known yet — do not treat as settled** (⬜):
+- The files are **single-file ComfyUI checkpoints of a "pruned" model**, not a diffusers pipeline folder. Whether AHA open's diffusers-based
+  worker can load them, and how much quality the pruning costs, has not been tried. This is the main risk of the decision.
+- Which file the worker uses (the mixed INT4/INT8 file is the likely one for 24 GiB GPUs; NVFP4 excludes everything but Blackwell).
+- The text encoders named by the page do not appear in the file list read at that revision; they must be located before any install plan.
+- Peak VRAM, time per clip and quality on the RTX 3090 Ti: **to be measured**. `min_vram_mib` for this model is empty on purpose until it is.
+- The license text is the base model's; a community re-upload does not change §2.1. The operator's duties (territory, UI label, hosted
+  service) are the same.
 
 ### 2.1 License — "MiniMax H3 COMMUNITY LICENSE AGREEMENT"
 
@@ -106,11 +131,11 @@ running in parallel, gave skewed timings (BF16 second run: 268 s) and is **not**
 | Qwen-Image-2.1 | INT8 | 2048² | **26.89 / 32.44 GiB** | 24.3 GiB | 33 s | **264 s** (1 run) | **Exceeds the 24 GiB of physical memory**: the driver spills into RAM; it runs but about 6.5× slower |
 | Qwen-Image-2.1 | BF16 | 1024² | **16.37 / 16.54 GiB** | 24.3 GiB | 26 s | **95.1 s / 323.7 s** | Fits in VRAM but system memory is tight (33 GB of weights, 31.7 GB of RAM). The second run is ~3.4× slower than the first, **repeatable on an idle machine**; the cause is not isolated (hypothesis: the file cache is pushed out of RAM) |
 | Qwen-Image-2.1 | BF16 | 2048² | to be measured | | | to be measured | |
-| MiniMax H3 FL2VA | BF16 + offload | 4 s · 768p | to be measured | | | to be measured | **Deferred** (project owner, 2026-11-23). From the index file that was read: transformer 66.28 GB + encoder 66.71 GB ≈ 133 GB for one checkpoint |
+| MiniMax H3 FL2VA | community INT4/INT8 build (§2.0) | 4 s · 768p | to be measured | | | to be measured | **Deferred** (project owner, 2026-11-23). The ~133 GB full model is dropped |
 
-Reading the table: on a 24 GB GPU, **INT8 at 1024² is the comfortable choice** (~40 s, 9.5 GiB). BF16 runs but is not faster and
-takes twice the disk; the BF16 build suits large GPUs (≥ 40 GiB) where no offload is needed — **not measured on such a GPU** (no
-such hardware was available), so the 40 GiB threshold in `hardware.py` is inferred from the weight size (33 GB) plus activations, not a measurement.
+Reading the table: on a 24 GB GPU, **INT8 at 1024² is the comfortable choice** (~40 s, 9.5 GiB). The BF16 rows are kept as the evidence
+for dropping the full model: it runs here but is not faster and takes twice the disk. A GPU of ≥ 40 GiB that would hold it without
+offload was never available, so nothing was measured there.
 
 ### 3.1 Size sweep and LoRA through the real gateway (✅ 2026-11-23, `int8`, seed 11, 40 steps)
 

@@ -5,10 +5,10 @@ standard HTTP API (`/v1`). A client sends a request to generate or edit an image
 (a creative-suite client) is the first client, and the bundled web page (`/ui/`) is another.
 
 > **Status (2026-11-23): no release yet (`0.1.0.dev`).** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
-> (two variants, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
+> (INT8 build, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
 > generation, editing, transparent images, cancelling and LoRA through the gateway, installed from a built wheel in a clean
 > environment. The web page (`/ui/`) was also driven in a real browser (connect, generate, result image, download). **Not tried yet:** the `lan` profile from a second machine, the `internet` profile
-> (needs a real Cloudflare account), `bf16` through the gateway, and video (MiniMax H3 is deferred). Per-item evidence levels are in
+> (needs a real Cloudflare account), and video (MiniMax H3 is deferred). Per-item evidence levels are in
 > [docs/05_models.md](docs/05_models.md) §3.
 
 ## Quick start (from source, needs [`uv`](https://docs.astral.sh/uv/) and an NVIDIA GPU)
@@ -16,14 +16,13 @@ standard HTTP API (`/v1`). A client sends a request to generate or edit an image
 ```bash
 uv sync --extra dev --extra download
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research   # suggests the bf16 or int8 build for your GPU
+aha-open models install qwen-image-2.1 --accept-license qwen-research   # the INT8 build, ~18 GB
 aha-open serve                                                          # listens on 127.0.0.1:8890
 aha-open open                                                           # opens the web page, no token to paste
 ```
 
-Qwen-Image-2.1 has **two variants** you can choose with `--variant`: `int8` (~18 GB of disk, ~9.5 GiB of VRAM at 1024², suits
-12–24 GB GPUs) and `bf16` (the full model, ~33 GB of disk, suits GPUs of ≥ 40 GiB). Without `--variant` the install command
-suggests one and says why.
+Qwen-Image-2.1 is offered as the **INT8 build only** (~18 GB of disk, ~9.5 GiB of VRAM at 1024², suits 12–24 GB GPUs);
+the full BF16 model is not supported.
 
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — the file is checked (safetensors
 only) and then appears in the manifest and in `/ui/`; a client picks it with `params.loras`.
@@ -36,7 +35,7 @@ the worker's own environment from its lock file.
 | Model | What it does | Notes |
 |---|---|---|
 | Qwen-Image-2.1 | Text-to-image, image editing (≤ 10 reference images), transparent RGBA images, LoRA | Non-commercial license (Qwen Research License) |
-| MiniMax H3 | Video with stereo audio | **Deferred**; hardware must be measured first, it may need several GPUs |
+| MiniMax H3 | Video with stereo audio | **Deferred**; only a community quantized build is planned (not the ~133 GB full model), not yet tried, see [docs/05_models.md](docs/05_models.md) §2.0 |
 
 ## Three ways to run it
 

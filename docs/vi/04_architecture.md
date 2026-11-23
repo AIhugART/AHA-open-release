@@ -85,7 +85,7 @@ enroll = true                # internet: mặc định false
 [[models]]
 id = "qwen-image-2.1"
 worker = "qwen_image"
-variant = "int8"             # int8 | bf16
+variant = "int8"             # int8 là biến thể duy nhất Qwen cung cấp
 gpu = 0
 
 [[models]]
@@ -100,7 +100,7 @@ enabled = false              # bật sau khi P0 xác nhận phần cứng
 | Lệnh | Việc |
 |---|---|
 | `aha-open init --profile local` | Tạo `data_dir`, cấu hình mặc định |
-| `aha-open models install qwen-image-2.1 --variant int8 --accept-license qwen-research` | Tạo venv worker, tải trọng số; không có `--accept-license` thì từ chối |
+| `aha-open models install qwen-image-2.1 --accept-license qwen-research` | Tạo venv worker, tải trọng số; không có `--accept-license` thì từ chối |
 | `aha-open models list` | Model, trạng thái, giấy phép |
 | `aha-open serve` | Chạy gateway |
 | `aha-open clients create --name "Laptop An"` | Tạo token thủ công (in một lần) |

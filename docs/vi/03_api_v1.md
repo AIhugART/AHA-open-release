@@ -92,7 +92,7 @@ Ví dụ MiniMax:
   "available": [{"id", "display_name", "default_scale", "bytes", "trigger?", "license?", "notes?"}]}`. `available` là các file
   **người vận hành đặt trên server** (client không tải LoRA lên qua `/v1`) và được đọc lại ở mỗi lần gọi manifest — thêm
   file không cần khởi động lại. Không bao giờ lộ đường dẫn.
-- Model có nhiều biến thể (vd Qwen `bf16`/`int8`) khai thêm: `variant` (biến thể đang chạy ở server này) và
+- Model có cung cấp biến thể (trường này là chung; Qwen-Image-2.1 chỉ có `int8`) khai thêm: `variant` (biến thể đang chạy ở server này) và
   `variants` = `{ "<tên>": {"label", "disk_gib", "vram_gib": {"1k", "native"}, "selected", "recommended"} }`.
   `recommended` là gợi ý theo phần cứng server (chỉ để hiển thị; server không tự đổi biến thể). `vram_gib` là số đo
   thật (`null` = chưa đo).
