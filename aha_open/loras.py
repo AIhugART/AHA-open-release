@@ -1,4 +1,4 @@
-"""LoRA files the operator has put on this server (plan R23).
+"""LoRA files the operator has put on this server.
 
 Design: LoRAs are *operator-managed*, never uploaded through /v1. A client can only pick one by id from the manifest.
 Why: a LoRA is model weights - it can be hundreds of MB, carries its own licence, and a hostile file is a way into the

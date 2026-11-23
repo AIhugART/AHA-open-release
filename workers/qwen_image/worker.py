@@ -1,9 +1,9 @@
-"""Qwen-Image-2.1 worker (plan P4). Runs inside its own virtual environment (pinned in pyproject.toml).
+"""Qwen-Image-2.1 worker. Runs inside its own virtual environment (pinned in pyproject.toml).
 
 Speaks the worker protocol of docs/04_architecture.md section 2 on stdin/stdout. Uses only public diffusers /
-transformers / bitsandbytes APIs; no code is copied from the Qwen or community repositories (plan R4, R21).
+transformers / bitsandbytes APIs; no code is copied from the Qwen or community repositories.
 
-Memory plan: the INT8 model always uses model-level CPU offload (the full BF16 model is not offered, plan R25).
+Memory plan: the INT8 model always uses model-level CPU offload (the full BF16 model is not offered).
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def emit(message: dict) -> None:
 def stdin_lines():
     """Yield protocol lines from fd 0 WITHOUT ever blocking inside a read.
 
-    Root cause (plan R22): on Windows a thread parked in a synchronous ReadFile on the stdin pipe blocks every other
+    Root cause: on Windows a thread parked in a synchronous ReadFile on the stdin pipe blocks every other
     operation on that handle, including the ones `import torch` / `import numpy` perform, so the worker hung forever on
     its first load. Polling for available bytes first means no thread is ever parked in ReadFile.
     """

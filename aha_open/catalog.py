@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # in a source checkout they are `workers/` at the repository root, next to the developer's `.venv` for each worker.
 WORKERS_DIR = Path(__file__).resolve().parent / "workers" if (Path(__file__).resolve().parent / "workers").is_dir() else ROOT / "workers"
 
-# Two tiers per aspect ratio (plan R20). "native" are the model's own sizes (~4 MP); "1k" are the same ratios at ~1 MP.
+# Two tiers per aspect ratio. "native" are the model's own sizes (~4 MP); "1k" are the same ratios at ~1 MP.
 # On a 24 GiB GPU the 1k tier takes ~40 s and fits in
 # VRAM, the native tier spills past VRAM and takes minutes (docs/05_models.md section 3). With only an aspect_ratio given,
 # the first match wins, so the 1k tier is the default; ask for width/height to get a native size.
@@ -44,7 +44,7 @@ QWEN_SIZES = [
 # LoRA adapters the operator put in <data_dir>/loras (aha_open/loras.py). Clients pick them by id from the manifest.
 LORA_CAPS = {"max": 3, "scale": {"min": 0.0, "max": 2.0, "default": 1.0}, "format": "safetensors"}
 
-# What Qwen-Image-2.1 costs (INT8 is the only variant offered; the full BF16 model was dropped, plan R25), measured on one RTX 3090 Ti 24 GiB (docs/05_models.md section 3). None = not measured yet.
+# What Qwen-Image-2.1 costs (INT8 is the only variant offered; the full BF16 model was dropped), measured on one RTX 3090 Ti 24 GiB (docs/05_models.md section 3). None = not measured yet.
 QWEN_VARIANTS = {
     # "loras": True = a real LoRA run succeeded on this variant; None = not tried (nothing is refused); False = refused.
     "int8": {"label": "int8", "disk_gib": 18, "vram_gib": {"1k": 9.5, "native": 26.9}, "loras": True},
@@ -120,7 +120,7 @@ CATALOG: dict[str, ModelSpec] = {
                 "sizes": QWEN_SIZES,
                 "max_reference_images": 10,
                 # No upstream API takes a mask (the README only says "separate masks"); not claimed until a real run
-                # shows how it behaves (plan R21). Painted annotations on the source image are an ordinary image.
+                # shows how it behaves. Painted annotations on the source image are an ordinary image.
                 "mask": False,
                 "rgba": True,
                 "max_outputs": 1,

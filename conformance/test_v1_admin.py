@@ -1,6 +1,6 @@
 """The LoRA admin page (`/admin/loras`): for the person at this machine, in the `local` profile, and nobody else.
 
-Real HTTP against a real gateway. Every security rule has a negative test (CLAUDE.md).
+Real HTTP against a real gateway. Every security rule has a negative test.
 """
 
 from __future__ import annotations

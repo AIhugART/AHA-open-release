@@ -1,4 +1,4 @@
-"""The installed package must carry everything a worker needs (plan P8).
+"""The installed package must carry everything a worker needs.
 
 Root cause this guards: `workers/` sits next to the package, not inside it, so a wheel built with the default package
 discovery had no worker code and `pip install aha-open` could never run a model. The wheel is checked for real by

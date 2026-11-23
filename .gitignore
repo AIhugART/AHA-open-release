@@ -12,7 +12,7 @@ build/
 .mypy_cache/
 .pytest_cache/
 
-# Runtime data and model weights (never committed, plan R4)
+# Runtime data and model weights (never committed)
 data/
 models/
 *.safetensors

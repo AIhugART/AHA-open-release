@@ -1,8 +1,8 @@
 """One lane per GPU: a fair queue, one resident model at a time, and the job state machine (docs/04_architecture.md section 3).
 
-Decisions (plan, RCA round 6): lanes are plain threads talking to worker processes through WorkerProc, not asyncio
+Design decisions: lanes are plain threads talking to worker processes through WorkerProc, not asyncio
 subprocesses - asyncio subprocess support depends on the event-loop flavour uvicorn picks on Windows.
-A failed job is never retried here: a retry costs GPU minutes, so the client decides (CLAUDE.md).
+A failed job is never retried here: a retry costs GPU minutes, so the client decides.
 """
 
 from __future__ import annotations

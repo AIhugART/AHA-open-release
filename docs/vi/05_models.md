@@ -18,9 +18,9 @@
 | Hạn chế đã biết (bản INT8 tự ghi) | Sửa ảnh 1024px làm quá nét; thêm chữ thừa ở poster tiếng Trung; thay nền 2048px thất bại ở cả hai độ chính xác | README INT8 |
 | Trên RTX 3090 Ti 24 GB | ✅ đã đo, xem §3: INT8 1024² ≈ 40 s / 9,5 GiB; cỡ gốc 2048² tràn VRAM | §3 |
 | Biến thể AHA open cung cấp | **Chỉ `int8`** (~18 GB đĩa, ~9,5 GiB VRAM ở 1024²). Bản BF16 đầy đủ (~33 GB) đã được đánh giá và bỏ (chủ sản phẩm, 2026-11-23): tốn gấp đôi đĩa, không nhanh hơn trên máy đo, chỉ có lợi trên GPU ≥ 40 GiB mà chưa từng có để đo. Số đo BF16 giữ ở §3 làm bằng chứng cho quyết định này | ghi chú thiết kế R25 |
-| Cỡ ảnh AHA open khai | 14 cỡ: 7 cỡ gốc (`tier: native`) + 7 cỡ ~1 MP (`tier: 1k`, mọi cạnh chia hết cho **32** — pipeline làm tròn xuống bội của 32: yêu cầu 1200×896 ra 1184×896). Chỉ cho `aspect_ratio` ⇒ hạng `1k` | plan R20 |
-| LoRA | Người vận hành đặt file `.safetensors` vào `<data_dir>/loras/` (`aha-open loras add FILE`); client chọn theo id + `scale` (≤ 3 cùng lúc, 0 < scale ≤ 2). ✅ chạy thật trên `int8` với hai LoRA thật (xem §3.2); LoRA có lớp lạ bị **từ chối**, không áp dụng một phần | plan R23 |
-| `mask` | **Không khai** (`mask: false`): README chỉ nói "separate masks", không có tham số nào; chưa có phép chạy nào cho thấy nó hoạt động ra sao | plan R21 |
+| Cỡ ảnh AHA open khai | 14 cỡ: 7 cỡ gốc (`tier: native`) + 7 cỡ ~1 MP (`tier: 1k`, mọi cạnh chia hết cho **32** — pipeline làm tròn xuống bội của 32: yêu cầu 1200×896 ra 1184×896). Chỉ cho `aspect_ratio` ⇒ hạng `1k` | design note R20 |
+| LoRA | Người vận hành đặt file `.safetensors` vào `<data_dir>/loras/` (`aha-open loras add FILE`); client chọn theo id + `scale` (≤ 3 cùng lúc, 0 < scale ≤ 2). ✅ chạy thật trên `int8` với hai LoRA thật (xem §3.2); LoRA có lớp lạ bị **từ chối**, không áp dụng một phần | design note R23 |
+| `mask` | **Không khai** (`mask: false`): README chỉ nói "separate masks", không có tham số nào; chưa có phép chạy nào cho thấy nó hoạt động ra sao | design note R21 |
 
 **Giấy phép — Qwen RESEARCH LICENSE AGREEMENT** (Release Date: September 20, 2026; toàn văn đã đọc; trích nguyên văn):
 
@@ -40,7 +40,7 @@
 - §8: luật Trung Quốc, toà án Hàng Châu.
 
 Hệ quả: người vận hành AHA open chịu trách nhiệm dùng Qwen đúng giấy phép (lệnh cài model đòi `--accept-license`).
-Client như AHA Studio chỉ hiện `commercial_use: not_allowed` từ manifest, không có logic riêng cho Qwen (plan R12, Q6).
+Client như AHA Studio chỉ hiện `commercial_use: not_allowed` từ manifest, không có logic riêng cho Qwen.
 
 Manifest: `"license": {"name": "Qwen RESEARCH LICENSE", "commercial_use": "not_allowed"}`.
 
@@ -148,12 +148,12 @@ Hai file thật do chủ sản phẩm đưa (`reference/Qwen-Image-2.1_LoRA/`, k
 này có hai lớp `gate_layer` và `proj` (`transformer_qwenimage21.py:206-212`); job vẫn `succeeded`, LoRA chạy với 5/6 lớp, không báo lỗi. Sửa tại gốc:
 worker đọc file, bỏ tiền tố/`.default`, gấp `alpha`, tách `gate_up` thành `gate_layer` (nửa đầu) + `proj` (nửa sau) rồi **từ chối** cả LoRA nếu
 còn tensor nhắm vào lớp không có (`workers/qwen_image/worker.py::lora_state_for`). Thứ tự nửa đầu/nửa sau là **trích dẫn từ mã của một dự
-án khác** (một bộ nạp LoRA mã nguồn mở độc lập cho Qwen-Image: "first half of the rows ... `gate_layer`, second half `proj`"; tên dự án ghi ở plan R24), không phải từ tài liệu
+án khác** (một bộ nạp LoRA mã nguồn mở độc lập cho Qwen-Image: "first half of the rows ... `gate_layer`, second half `proj`"), không phải từ tài liệu
 upstream; bằng chứng độc lập duy nhất ở đây là sau sửa tác dụng bật/tắt tăng từ 1,85 lên 2,85 và log không còn dòng cảnh báo — chưa có phép thử
 nào phân biệt thứ tự đúng với thứ tự đảo. `natural-skin` cho **đúng cùng sha256 ảnh** trước và sau sửa (`b699c70c77c4`) ⇒ đường mới không đổi kết quả của file đã chạy đúng.
 Cổng chống tái phát: `tests/test_lora_state.py` (4 test, đã sabotage-verify: đảo nửa, bỏ `alpha`, bỏ kiểm lớp lạ ⇒ đúng test đó đỏ).
 
-Hệ quả cho manifest (plan R20): bảng cỡ của Qwen có hai hạng — `1k` (~1 MP cùng tỉ lệ, nhanh; ✅ cả 7 cỡ đã sinh ảnh thật) và `native`
+Hệ quả cho manifest: bảng cỡ của Qwen có hai hạng — `1k` (~1 MP cùng tỉ lệ, nhanh; ✅ cả 7 cỡ đã sinh ảnh thật) và `native`
 (cỡ gốc ~4 MP, chậm khi VRAM < ~27 GiB). Ảnh Qwen trả về luôn là PNG RGBA (cả khi không yêu cầu trong suốt).
 Cloudflare Tunnel (giới hạn thân request, timeout): **⬜ chưa đo** — cần tài khoản Cloudflare thật, xem `docs/06_deployment.md`.
 

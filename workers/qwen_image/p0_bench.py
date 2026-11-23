@@ -1,4 +1,4 @@
-"""P0 measurement for Qwen-Image-2.1 (plan §3, P0). Measurement tool, not product code.
+"""P0 measurement for Qwen-Image-2.1. Measurement tool, not product code.
 
 One process = one (variant, resolution) cell, so peak numbers are not polluted by an earlier cell.
 Prints ONE json line prefixed with `P0_RESULT ` on success. Prompts are never logged.

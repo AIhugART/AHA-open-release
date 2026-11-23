@@ -1,4 +1,4 @@
-"""Regression for plan R22: a worker hung forever on its first model load under the gateway.
+"""Regression: a worker hung forever on its first model load under the gateway.
 
 Root cause: on Windows a thread parked in a synchronous ReadFile on the stdin pipe blocks other operations on that
 handle, including those performed by `import numpy` / `import torch`. The gateway keeps stdin open for the whole life

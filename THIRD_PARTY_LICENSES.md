@@ -3,7 +3,13 @@
 AHA open's own code is Apache-2.0 (see `LICENSE`). It is installed together with the packages below. This list was
 generated on 2026-11-23 from the metadata of the packages installed in two clean environments (the gateway as resolved by
 `pip install` of the wheel; the worker from its lock file); it is a convenience, not legal advice, and the license text shipped by each package is the authority.
-No package is GPL/AGPL/LGPL-licensed or has an unknown license. Two points need care:
+No package is GPL/AGPL/LGPL-licensed or has an unknown license. Re-checked on 2026-11-23 by reading the `License`,
+`License-Expression` and classifier fields of every installed package in two environments (28 packages in the gateway's
+development environment, which also holds pytest and ruff; 52 in the worker's): none is GPL/AGPL/LGPL and none lacks a
+declaration (a few declare only a classifier such as "BSD License"). What this check does not cover: the license *texts*
+shipped by each package, and the NVIDIA libraries inside the PyTorch wheel (the wheel's own `LICENSE` file carries NVIDIA
+copyright notices and points to NVIDIA's EULA for the CUTLASS Python DSL; the statement below about the CUDA runtime
+libraries comes from PyTorch's distribution model and was not re-verified here). Two points need care:
 
 - `certifi` and `tqdm` are MPL-2.0 (file-level copyleft: it applies to those packages' own files, not to AHA open).
 - The PyTorch CUDA wheels used by the worker embed NVIDIA CUDA runtime libraries under NVIDIA's own license. AHA open

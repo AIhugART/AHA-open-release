@@ -2,7 +2,7 @@
 
 > Trạng thái: gateway (P2/P3) đã cài đặt và qua bộ kiểm hợp chuẩn với worker giả (🧪, xem `conformance/`);
 > worker Qwen (P4) và giao diện `/ui/` (P5b) xem [05_models.md](05_models.md) §3.
-> Gateway ↔ worker dùng `subprocess.Popen` + thread đọc (không dùng asyncio subprocess), plan R15.
+> Gateway ↔ worker dùng `subprocess.Popen` + thread đọc (không dùng asyncio subprocess).
 
 ## 1. Hai loại tiến trình
 
@@ -24,7 +24,7 @@ client ──/v1──►  │ HTTP (FastAPI/uvicorn)  ·  auth/token  ·  uploa
 | **gateway** | **không** | Toàn bộ API `/v1`, xác thực, lưu trữ, hàng đợi, quyết định model nào đang trên GPU. Khởi động nhanh, luôn trả lời `/v1/health`. |
 | **worker** (một cho mỗi họ model) | có | Nạp đúng một pipeline, chạy từng job, báo tiến độ, dừng ở ranh giới bước khi được huỷ. |
 
-Vì sao tách: hai model ghim hai phiên bản diffusers/transformers khác nhau (đã đo, xem plan R2) — một môi trường chung
+Vì sao tách: hai model ghim hai phiên bản diffusers/transformers khác nhau (đã đo) — một môi trường chung
 sẽ làm hỏng một trong hai. Worker cũng là đơn vị có thể chết (OOM, lỗi CUDA) mà không kéo gateway theo.
 
 ## 2. Giao tiếp gateway ↔ worker

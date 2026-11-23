@@ -48,7 +48,7 @@ def test_recommend_variant(gpu_mib, ram, expected):
 
 
 def test_qwen_offers_int8_only():
-    """The full BF16 model was dropped (plan R25): no catalog entry, install plan or worker path may bring it back."""
+    """The full BF16 model was dropped: no catalog entry, install plan or worker path may bring it back."""
     assert list(QWEN.variants) == ["int8"] and list(QWEN.min_vram_mib) == ["int8"]
     assert list(INSTALLABLE["qwen-image-2.1"]["variants"]) == ["int8"]
     source = (ROOT / "workers" / "qwen_image" / "worker.py").read_text(encoding="utf-8")

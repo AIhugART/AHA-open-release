@@ -1,6 +1,6 @@
 """`aha-open models install`: licence acknowledgement, variant choice, weights, worker environment, config.
 
-The operator downloads the weights and accepts the licence; AHA open never ships or mirrors them (plan R4).
+The operator downloads the weights and accepts the licence; AHA open never ships or mirrors them.
 """
 
 from __future__ import annotations
@@ -118,7 +118,7 @@ def _download(repo: str, revision: str, target: Path) -> int:
 
 
 def _make_worker_env(cfg: Config, family: str) -> int:
-    """Create the worker's own virtual environment from its pinned pyproject (plan R2)."""
+    """Create the worker's own virtual environment from its pinned pyproject."""
     src = WORKERS_DIR / family
     if not (src / "pyproject.toml").exists():
         _say(f"error: {src} has no pyproject.toml; this install does not include the worker; reinstall aha-open, or pass --skip-env")
@@ -129,7 +129,7 @@ def _make_worker_env(cfg: Config, family: str) -> int:
     env = {**os.environ, "UV_PROJECT_ENVIRONMENT": str(venv)}  # install into our venv, never into the package folder
     for cmd in (
         ["uv", "venv", "--python", "3.13", str(venv)],
-        # --frozen: exactly the versions in the worker's uv.lock (plan R2); a lock that no longer matches is an error, not a re-resolve
+        # --frozen: exactly the versions in the worker's uv.lock; a lock that no longer matches is an error, not a re-resolve
         ["uv", "sync", "--project", str(src), "--frozen", "--no-install-project", "--python", str(venv / scripts)],
     ):
         done = subprocess.run(cmd, check=False, env=env)

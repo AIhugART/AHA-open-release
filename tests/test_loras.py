@@ -1,4 +1,4 @@
-"""LoRA registry: what the operator may put on the server and what is refused (plan R23). No GPU, no torch."""
+"""LoRA registry: what the operator may put on the server and what is refused. No GPU, no torch."""
 
 from __future__ import annotations
 

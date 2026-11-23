@@ -101,11 +101,25 @@ Facts: tensor names are ComfyUI-style (`blocks.N.attn.qkv_proj`, `blocks.N.mlp.f
 `num_layers 50`, `num_attention_heads 56`, `latents_dim 24`, `audio_latents_dim 32`, `patch_size [1,2,2]`. Dtypes are all standard.
 Inference (not observed): the mixed file's `out_proj` width 3584 = 7168/2 suggests two INT4 values packed per byte.
 
-Not read: the Ref2VA headers, the INT4-only files, the VAEs, and any `text_encoders/` file (none is listed at the revision above).
+The Ref2VA files have the same format (`…Ref2VA_pruned_mixed_int4_int8_convrot`: 932 tensors, same `comfy_quant` blob; `…Ref2VA_nvfp4_mixed`: 951 tensors,
+F8_E4M3 scales, an extra `time_embedder`). Not read: the INT4-only files and the VAEs. The repository has **no `text_encoders/` folder** (top level
+of the tree: the seven checkpoints, `README.md`, `ref2.json`, `Amy`, `vae/`) although its README lists three text-encoder files.
 
 **Consequence (✅ from the headers, ⬜ for the fix):** these are not diffusers checkpoints. Their key names and `comfy_quant` layout are
 not what `from_single_file` / the Qwen worker's diffusers code expects, and running ConvRot W4A4 needs a loader plus INT8/INT4 kernels that
 are not part of diffusers. "Load them with the diffusers worker" is therefore **refuted as stated**. MiniMax H3 support is paused until a runtime for this format is chosen.
+
+**What exists for this format** (✅ read from public sources on 2026-11-23, nothing downloaded):
+
+- It is implemented by ComfyUI (`Comfy-Org/ComfyUI`, **GPL-3.0** per the GitHub API; the H3 model is in `comfy/ldm/minimax/model.py`,
+  `convrot_w4a4` in `comfy/quant_ops.py`) and by the library `comfy-kitchen` (**Apache-2.0**, on PyPI: quantized tensor types and kernels, no
+  model code). The official MiniMax repository (`MiniMax-AI/MiniMax-H3`) ships the VAE code; its license field is "other".
+- The official ComfyUI-format distribution is **`Comfy-Org/MiniMax-H3`** (license field `minimax-h3-community-license-agreement`, not gated). It has
+  everything the pipeline needs: `diffusion_models/` (pruned INT8-ConvRot 19.53 GiB, pruned W6A8 14.89, pruned FP8 19.52, full INT8 31.70),
+  `text_encoders/` (INT8-ConvRot 25.28 GiB, NVFP4-AWQ 14.61 for Blackwell, BF16 47.97) and `vae/` (video 4.85 GiB, audio 0.56 GiB).
+- Not measured, and the reason it was not tried here: a 24 GiB GPU / 31.7 GiB RAM machine would need the INT8 transformer (19.5 GiB) plus the INT8
+  text encoder (25.3 GiB) plus the VAEs (5.4 GiB), about 50 GiB of downloads, and the two big parts cannot sit in RAM together, so the runtime
+  must load them one after the other (ComfyUI does).
 
 **Not known yet — do not treat as settled** (⬜):
 - The files are **single-file ComfyUI checkpoints of a "pruned" model**, not a diffusers pipeline folder. The header read above shows the

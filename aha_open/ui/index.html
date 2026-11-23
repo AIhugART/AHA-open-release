@@ -3,95 +3,121 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#020711">
 <link rel="icon" href="data:,">
 <title>AHA open</title>
-<style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --muted:#5b6470; --line:#d9dde3; --accent:#2f5bea; --warn:#9a5b00; --bad:#b3261e; --ok:#1b7f4b; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --card:#181b21; --ink:#eceff4; --muted:#9aa3b0; --line:#2b313b; --accent:#7b9cff; --warn:#e0a24a; --bad:#ff8a80; --ok:#6fd39a; } }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
-  main { max-width: 880px; margin: 0 auto; padding: 20px 16px 48px; }
-  h1 { font-size: 20px; margin: 0 0 4px; } .sub { color:var(--muted); margin:0 0 16px; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:0 0 14px; }
-  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 3px; }
-  input, select, textarea, button { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
-  textarea { width:100%; min-height:90px; resize:vertical; } input[type=text], input[type=password], select { width:100%; }
-  button { cursor:pointer; background:var(--accent); color:#fff; border-color:transparent; } button.secondary { background:var(--bg); color:var(--ink); border-color:var(--line); }
-  button:disabled { opacity:.5; cursor:not-allowed; } .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; } .row > * { flex:1 1 140px; }
-  .lora { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:3px 0; } .lora input[type=text] { width:64px; flex:0 0 auto; }
-  .badge { display:inline-block; font-size:12px; border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin-right:6px; }
-  .badge.bad { color:var(--bad); border-color:var(--bad); } .badge.ok { color:var(--ok); border-color:var(--ok); } .badge.warn { color:var(--warn); border-color:var(--warn); }
-  .note { color:var(--muted); font-size:13px; } .err { color:var(--bad); } .bar { height:8px; background:var(--line); border-radius:99px; overflow:hidden; margin:8px 0; }
-  .bar > i { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; } img, video { max-width:100%; border-radius:8px; border:1px solid var(--line); }
-  #checker { background-image: conic-gradient(#8883 25%, transparent 0 50%, #8883 0 75%, transparent 0); background-size: 16px 16px; display:inline-block; border-radius:8px; }
-</style>
+<link rel="stylesheet" href="./theme.css">
 </head>
 <body>
-<main>
-  <h1>AHA open</h1>
-  <p class="sub">A small page that talks to this server's <code>/v1</code> API, like any other client. Nothing leaves this server.</p>
+<a class="skip-link" href="#workspace">Skip to Workspace</a>
+<header class="site-header shell">
+  <div class="header-shell">
+    <a class="brand" href="./" aria-label="AHA open home" translate="no">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 27 17.5 6 30 27M10 20h15M22 6l9 15" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-name">AHA<span>open</span></span>
+    </a>
+    <div class="header-meta"><span class="header-pill">Creative workspace</span><span>Open source. Yours to create.</span></div>
+  </div>
+</header>
+<main id="workspace" class="shell" tabindex="-1">
+  <div class="intro">
+    <div><span class="eyebrow">Your models. Your machine.</span><h1>A little prompt. A new possibility.</h1>
+      <p class="sub">Generate and edit with open AI models, powered by your own GPU.</p></div>
+    <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" stroke="currentColor" stroke-width="1.5"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.5"/></svg>Nothing leaves this server</div>
+  </div>
 
-  <section id="connect">
-    <label for="token">Access token</label>
-    <div class="row"><input id="token" type="password" autocomplete="off" placeholder="aho_…  (or open this page with: aha-open open)"><button id="save" class="secondary" style="flex:0 0 auto">Connect</button></div>
-    <div id="status" class="note" role="status"></div>
+  <section id="connect" class="panel connection" aria-labelledby="connect-title">
+    <div><h2 id="connect-title">Connect Your Server</h2><p class="note">Use your access token, or launch with <code>aha-open open</code> to connect automatically.</p></div>
+    <div>
+      <label for="token">Access token</label>
+      <div class="row"><input id="token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="aho_…" aria-describedby="status"><button id="save" type="button">Connect</button></div>
+      <div id="status" class="note" role="status">Enter your token to load available models.</div>
+    </div>
   </section>
 
-  <section id="make" hidden>
-    <label for="model">Model</label><select id="model"></select>
+  <div class="workspace">
+  <section class="panel welcome" aria-labelledby="welcome-title">
+    <h2 id="welcome-title">Make Room for Your Ideas</h2>
+    <p class="note">Your creative workspace is a connection away.</p>
+    <ol>
+      <li><div><strong>Connect your server</strong><p class="note">Enter the token from your AHA open installation.</p></div></li>
+      <li><div><strong>Choose a model &amp; write a prompt</strong><p class="note">Describe what you want to create, then adjust the settings.</p></div></li>
+      <li><div><strong>Generate &amp; make it yours</strong><p class="note">Preview your result here and download the original file.</p></div></li>
+    </ol>
+  </section>
+  <section id="make" class="panel composer" aria-labelledby="make-title" hidden>
+    <div class="panel-heading"><div class="heading-group"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" stroke="currentColor" stroke-width="1.5"/></svg><h2 id="make-title">Create Something New</h2></div><span class="eyebrow">Create</span></div>
+    <div class="field-grid">
+      <div><label for="model">Model</label><select id="model" name="model" aria-describedby="modelinfo"></select></div>
+      <div><label for="task">Task</label><select id="task" name="task"></select></div>
+    </div>
     <div id="modelinfo" class="note"></div>
-    <label for="task">What to do</label><select id="task"></select>
-    <label for="prompt">Prompt</label><textarea id="prompt" maxlength="8000"></textarea>
+    <label for="prompt">Your prompt</label><textarea id="prompt" name="prompt" autocomplete="off" maxlength="8000" placeholder="A quiet mountain lake at sunrise, soft light, delicate reflections…" aria-describedby="prompt-help"></textarea>
+    <p id="prompt-help" class="note">Describe the subject, style, lighting, and details you have in mind.</p>
     <div id="imagebox">
       <div class="row">
-        <div><label for="size">Size</label><select id="size"></select></div>
-        <div><label for="seed">Seed (empty = random)</label><input id="seed" type="text" inputmode="numeric"></div>
-        <div><label for="steps">Steps</label><input id="steps" type="text" inputmode="numeric"></div>
+        <div><label for="size">Image size</label><select id="size" name="size"></select></div>
+        <div><label for="seed">Seed <span class="optional">(optional)</span></label><input id="seed" name="seed" type="text" inputmode="numeric" autocomplete="off" placeholder="Random…"></div>
+        <div><label for="steps">Steps</label><input id="steps" name="steps" type="text" inputmode="numeric" autocomplete="off"></div>
       </div>
-      <label id="transparentrow"><input id="transparent" type="checkbox"> Transparent background (RGBA)</label>
+      <label id="transparentrow"><input id="transparent" name="transparent" type="checkbox"> Transparent background (RGBA)</label>
       <div id="sizenote" class="note"></div>
-      <div id="lorabox" hidden>
-        <div class="row" style="align-items:center">
-          <label style="flex:1 1 auto">LoRA (optional)</label>
-          <button id="lorarefresh" type="button" class="secondary" style="flex:0 0 auto" title="Read the list of LoRA from the server again">Refresh</button>
+      <fieldset id="lorabox" class="lora-group" hidden>
+        <legend>LoRA <span class="optional">(optional)</span></legend>
+        <div class="lora-toolbar">
+          <span class="note">Add a style to your generation</span>
+          <button id="lorarefresh" type="button" class="secondary" title="Read the list of LoRA from the server again">Refresh LoRAs</button>
         </div>
         <div id="loralist"></div>
-        <div id="loranote" class="note"></div>
-        <details id="loraadmin" hidden style="margin-top:12px">
+        <div id="loranote" class="note" role="status"></div>
+        <details id="loraadmin" hidden>
           <summary>Manage LoRA files on this server</summary>
           <p class="note">Only on the machine that runs AHA open. Files are checked (safetensors only) before they are offered.</p>
-          <label for="lorafile">LoRA file (.safetensors)</label><input id="lorafile" type="file" accept=".safetensors">
+          <label for="lorafile">LoRA file (.safetensors)</label><input id="lorafile" name="lorafile" type="file" accept=".safetensors">
           <div class="row">
-            <div><label for="loraid">Id</label><input id="loraid" type="text" autocomplete="off"></div>
-            <div><label for="loraname">Name shown</label><input id="loraname" type="text" autocomplete="off"></div>
+            <div><label for="loraid">ID</label><input id="loraid" name="loraid" type="text" autocomplete="off" spellcheck="false"></div>
+            <div><label for="loraname">Display name</label><input id="loraname" name="loraname" type="text" autocomplete="off"></div>
           </div>
           <div class="row">
-            <div><label for="loratrigger">Trigger word (optional)</label><input id="loratrigger" type="text" autocomplete="off"></div>
-            <div><label for="lorascale">Default strength</label><input id="lorascale" type="text" inputmode="decimal" value="1"></div>
+            <div><label for="loratrigger">Trigger word <span class="optional">(optional)</span></label><input id="loratrigger" name="loratrigger" type="text" autocomplete="off" spellcheck="false"></div>
+            <div><label for="lorascale">Default strength</label><input id="lorascale" name="lorascale" type="text" autocomplete="off" inputmode="decimal" value="1"></div>
           </div>
           <p><button id="loraadd" type="button">Add LoRA</button> <span id="loraadmsg" class="note" role="status"></span></p>
           <div id="loraadmlist"></div>
         </details>
-      </div>
+      </fieldset>
     </div>
     <div id="videobox" hidden>
       <div class="row">
-        <div><label for="vratio">Aspect ratio</label><select id="vratio"></select></div>
-        <div><label for="vdur">Duration (s)</label><input id="vdur" type="text" inputmode="decimal"></div>
-        <div><label for="vedge">Short edge</label><select id="vedge"></select></div>
+        <div><label for="vratio">Aspect ratio</label><select id="vratio" name="vratio"></select></div>
+        <div><label for="vdur">Duration (s)</label><input id="vdur" name="vdur" type="text" autocomplete="off" inputmode="decimal"></div>
+        <div><label for="vedge">Short edge</label><select id="vedge" name="vedge"></select></div>
       </div>
     </div>
     <div id="editbox" hidden>
-      <label for="files">Source image, then optional reference images</label><input id="files" type="file" accept="image/*" multiple>
+      <label for="files">Source image, then optional reference images</label><input id="files" name="files" type="file" accept="image/*" multiple>
     </div>
-    <p><button id="go">Generate</button> <button id="cancel" class="secondary" hidden>Cancel</button></p>
+    <div class="generate-actions"><button id="go" type="button">Generate</button><button id="cancel" type="button" class="secondary" hidden>Cancel</button></div>
     <div class="bar" id="barwrap" hidden><i id="bar"></i></div>
     <div id="jobline" class="note" role="status"></div>
   </section>
 
-  <section id="out" hidden><div id="checker"><img id="img" alt="Result" hidden><video id="vid" controls hidden></video></div>
-    <p><a id="dl" download>Download</a> <span class="note" id="outinfo"></span></p></section>
+  <section class="panel preview-panel" aria-labelledby="preview-title">
+    <div class="panel-heading"><div class="heading-group"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="m3 16 5-5 5 5 3-3 5 5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/></svg><h2 id="preview-title">Preview</h2></div><span class="eyebrow">Output</span></div>
+    <div class="preview-stage">
+      <div class="empty-preview">
+        <div class="preview-art"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="9" y="13" width="42" height="40" rx="7" stroke="currentColor" stroke-width="1.5" opacity=".55"/><path d="m10 43 12-12 13 13 7-7 9 9" stroke="currentColor" stroke-width="1.5" opacity=".7"/><path d="m47 5 2.7 7.3L57 15l-7.3 2.7L47 25l-2.7-7.3L37 15l7.3-2.7L47 5Z" fill="#071421" stroke="currentColor" stroke-width="1.5"/><circle cx="23" cy="25" r="3" stroke="currentColor" stroke-width="1.5" opacity=".7"/></svg></div>
+        <h3>Your Next Idea Starts Here</h3><p>Your generated image or video will appear here, ready to preview and download.</p>
+      </div>
+      <div id="out" hidden><div id="checker"><img id="img" alt="Generated result" width="1024" height="1024" hidden><video id="vid" aria-label="Generated video" controls hidden></video></div>
+        <div class="result-actions"><a id="dl" class="download-link" download>Download Original</a><span class="note" id="outinfo"></span></div>
+      </div>
+    </div>
+    <div class="preview-footer"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>Generated on your server. Ready for your next step.</div>
+  </section>
+  </div>
 </main>
+<footer class="shell site-footer"><span translate="no">AHA open · Open-source creative tools</span><span>Powered by your GPU. Driven by your imagination.</span></footer>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);

@@ -3,7 +3,7 @@
 > Chuẩn này **trung lập**: dịch vụ nào cũng có thể cài đặt nó; AHA open là một cài đặt. Khi có
 > `schema/aha_provider_v1.openapi.yaml` (giai đoạn P1), file OpenAPI là nguồn sự thật máy đọc được.
 >
-> **Bản gốc duy nhất của chuẩn `/v1` nằm ở repo này** (plan R13). Client — kể cả AHA Studio — chỉ trỏ sang đây và
+> **Bản gốc duy nhất của chuẩn `/v1` nằm ở repo này**. Client — kể cả AHA Studio — chỉ trỏ sang đây và
 > ghim phiên bản đặc tả mà chúng hỗ trợ; không giữ bản sao riêng.
 
 ## 1. Quy ước chung
