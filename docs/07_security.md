@@ -40,6 +40,7 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 12. **`local_client.token`** (the `local` profile) is written only when the profile is `local`, readable only by the current user, and removed
     when the profile changes.
 13. **A model with "hosted service" obligations** (MiniMax H3) is off by default on the `internet` profile.
+14. **`/admin` is for the person at the machine.** Only in the `local` profile, only for a loopback peer that asks for a loopback name, and it still needs a token; any other case answers `404`. A loopback peer alone is not enough: in the `internet` profile the tunnel connects from `127.0.0.1`.
 
 ## 4. Mandatory negative tests (the conformance suite)
 
@@ -57,6 +58,10 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 | A revoked token | `401` on the very next call |
 | The `lan`/`internet` profiles | no `local_client.token` on disk |
 | The `internet` profile, MiniMax obligations not accepted | the model's `state` is not `ready`, jobs are refused |
+| `/admin/loras` in the `lan`/`internet` profile, even with a valid token and `Host: 127.0.0.1` | `404`, nothing written |
+| `/admin/loras` without a token / with a wrong token | `401`, nothing written |
+| `/admin/loras` with a foreign `Host` or `Origin` | `403`, nothing written |
+| An admin upload that is not a LoRA, has a bad id or bad details | `400`, nothing left in `loras/` or `tmp/` |
 | Negative search: a sample prompt/token in the logs and state files | 0 matches |
 
 ## 5. The operator's responsibilities

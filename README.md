@@ -27,6 +27,8 @@ the full BF16 model is not supported.
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — the file is checked (safetensors
 only) and then appears in the manifest and in `/ui/`; a client picks it with `params.loras`.
 
+On the machine that runs AHA open, the web page can also add and remove LoRA files (**Manage LoRA files**), and **Refresh** re-reads the list after you copy files in by hand; no restart is needed.
+
 A wheel can be built with `uv build`; it carries the worker sources and the web page, and `aha-open models install` creates
 the worker's own environment from its lock file.
 
@@ -35,7 +37,7 @@ the worker's own environment from its lock file.
 | Model | What it does | Notes |
 |---|---|---|
 | Qwen-Image-2.1 | Text-to-image, image editing (≤ 10 reference images), transparent RGBA images, LoRA | Non-commercial license (Qwen Research License) |
-| MiniMax H3 | Video with stereo audio | **Deferred**; only a community quantized build is planned (not the ~133 GB full model), not yet tried, see [docs/05_models.md](docs/05_models.md) §2.0 |
+| MiniMax H3 | Video with stereo audio | **Deferred**; only a community quantized build is planned (not the ~133 GB full model); its checkpoints are ComfyUI-format (ConvRot W4A4), which the diffusers worker cannot load, so support is paused until a runtime is chosen. See [docs/05_models.md](docs/05_models.md) §2.0 |
 
 ## Three ways to run it
 

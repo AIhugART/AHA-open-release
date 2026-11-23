@@ -67,6 +67,7 @@ sau khi job đã `cancelled` bị bỏ.
   jobs/<job_id>/        input (liên kết tới upload), output, log của job; xoá sau result_ttl_s
   models/               trọng số tải từ Hugging Face (người vận hành tải, đã đồng ý giấy phép)
   loras/                <id>.safetensors [+ <id>.json] do người vận hành đặt (`aha-open loras add`); chỉ safetensors, id a-z0-9_-
+  tmp/                  LoRA mà trang web đang nhận; được đổi tên vào loras/ hoặc xoá ngay, không giữ lại
   tls/                  chứng chỉ tự ký cho hồ sơ lan
 ```
 
@@ -125,7 +126,7 @@ docs/
 ## 8. Bất biến
 
 1. Gateway không import torch (test chạy trong tiến trình con, kiểm `sys.modules`).
-2. Không có route nào ngoài `/v1/*`, tệp tĩnh `/ui/*` (giao diện web — chỉ gọi `/v1` như mọi client, plan R14) và `/admin/*` nếu có trang quản trị (chỉ trên loopback).
+2. Không có route nào ngoài `/v1/*`, tệp tĩnh `/ui/*` (giao diện web — chỉ gọi `/v1` và `/admin/loras`) và `/admin/loras*` (quản lý LoRA: chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`).
 3. Không có pixel/prompt nào ra khỏi máy ngoài phản hồi cho chính client đã gửi.
 4. Kích thước output đúng như `params` đã được chấp nhận; không resize ngầm.
 5. Một job đã `cancelled` không bao giờ có kết quả.

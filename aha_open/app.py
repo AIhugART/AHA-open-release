@@ -25,6 +25,11 @@ from .auth import Auth
 from .catalog import CATALOG, detect_gpus, enabled_models, manifest_model, model_state, validate_job
 from .config import Config
 from .errors import ApiError, busy, forbidden, invalid, not_found
+from .loras import ID_RE as LORA_ID_RE
+from .loras import MAX_FILE_BYTES as LORA_MAX_BYTES
+from .loras import LoraError, check_meta
+from .loras import add as add_lora
+from .loras import remove as remove_lora
 from .loras import scan as scan_loras
 from .scheduler import Scheduler
 from .store import TERMINAL, Store
@@ -58,6 +63,20 @@ def allowed_hosts(cfg: Config) -> set[str]:
         hosts |= {"127.0.0.1", "localhost", "::1"}
     hosts |= {h.lower() for h in cfg.hosts}
     return hosts
+
+
+LOOPBACK_PEERS = {"127.0.0.1", "::1"}
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def admin_allowed(profile: str, peer: str | None, host_header: str) -> bool:
+    """`/admin/*` is for the person sitting at this machine, nobody else.
+
+    Why a loopback peer is NOT enough: in the `internet` profile cloudflared connects from 127.0.0.1 and passes the public
+    request through, so every visitor of the tunnel looks like a loopback peer (conformance/test_v1_security.py even relies
+    on that). The page is therefore on only in the `local` profile, and only for a loopback peer asking for a loopback name.
+    """
+    return profile == "local" and peer in LOOPBACK_PEERS and _strip_port(host_header) in LOOPBACK_HOSTS
 
 
 class GuardMiddleware:
@@ -172,6 +191,64 @@ def create_app(cfg: Config) -> FastAPI:
             "optional": {"enroll": cfg.enroll},
             "models": models,
         }
+
+    # ------------------------------------------------------------------ admin (local profile, loopback only)
+    def admin_client(request: Request) -> dict:
+        peer = request.client.host if request.client else None
+        if not admin_allowed(cfg.profile, peer, request.headers.get("host", "")):
+            raise not_found("not found")  # the same answer as for a path that does not exist
+        return client_of(request)
+
+    @app.get("/admin/loras")
+    def admin_list_loras(request: Request):
+        admin_client(request)
+        found, problems = scan_loras(cfg)
+        return {"loras": [lora.public() for lora in found.values()], "problems": problems}
+
+    @app.put("/admin/loras/{lora_id}", status_code=201)
+    async def admin_put_lora(lora_id: str, request: Request):
+        """The body is the raw .safetensors file; details travel in the query (name, trigger, scale, license, notes)."""
+        admin_client(request)
+        if not LORA_ID_RE.match(lora_id):
+            raise invalid("the id must be lowercase letters, digits, '-' or '_' (at most 64)")
+        query = request.query_params
+        meta: dict = {"display_name": query.get("name"), "trigger": query.get("trigger"),
+                      "license": query.get("license"), "notes": query.get("notes")}
+        if query.get("scale"):
+            try:
+                meta["default_scale"] = float(query["scale"])
+            except ValueError as err:
+                raise invalid("scale must be a number") from err
+        try:
+            check_meta(lora_id, {k: v for k, v in meta.items() if v not in (None, "")})  # refuse before receiving gigabytes
+        except LoraError as err:
+            raise invalid(str(err)) from err
+        # Same disk as loras/, so the final step is a rename, never a second copy. The file carries the id the user typed, so
+        # every message about it ("<id>.safetensors is not a safetensors file") speaks of something the user recognises.
+        incoming = cfg.data_dir / "tmp" / secrets.token_hex(8)
+        incoming.mkdir(parents=True, exist_ok=True)
+        path = incoming / f"{lora_id}.safetensors"
+        try:
+            size = 0
+            with path.open("wb") as fh:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > LORA_MAX_BYTES:
+                        raise invalid(f"the file is larger than {LORA_MAX_BYTES // 2**30} GiB")
+                    fh.write(chunk)
+            try:
+                return add_lora(cfg, path, lora_id, move=True, **meta).public()
+            except LoraError as err:
+                raise invalid(str(err)) from err
+        finally:
+            shutil.rmtree(incoming, ignore_errors=True)  # after a successful move the folder is already empty
+
+    @app.delete("/admin/loras/{lora_id}", status_code=204)
+    def admin_delete_lora(lora_id: str, request: Request):
+        admin_client(request)
+        if not remove_lora(cfg, lora_id):
+            raise not_found("unknown LoRA")
+        return Response(status_code=204)
 
     # ------------------------------------------------------------------ uploads
     @app.post("/v1/uploads", status_code=201)

@@ -25,6 +25,8 @@ Qwen-Image-2.1 chỉ cung cấp **bản INT8** (~18 GB đĩa, ~9,5 GiB VRAM ở 
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — file được kiểm (chỉ safetensors) rồi
 hiện trong manifest/`/ui/`; client chọn bằng `params.loras`.
 
+Trên máy chạy AHA open, trang web cũng thêm/gỡ file LoRA được (**Manage LoRA files**), và nút **Refresh** đọc lại danh sách sau khi bạn tự chép file vào; không cần khởi động lại.
+
 ## Mục tiêu v1
 
 | Model | Việc | Ghi chú |

@@ -69,6 +69,7 @@ after the job was `cancelled` is dropped.
   jobs/<job_id>/        input (a link to the upload), output, the job's log; deleted after result_ttl_s
   models/               weights downloaded from Hugging Face (by the operator, who accepted the license)
   loras/                <id>.safetensors [+ <id>.json] put there by the operator (`aha-open loras add`); safetensors only, id a-z0-9_-
+  tmp/                  a LoRA the web page is receiving; renamed into loras/ or deleted at once, never kept
   tls/                  self-signed certificate for the lan profile
 ```
 
@@ -107,6 +108,7 @@ enabled = false              # enable after the hardware has been measured
 | `aha-open serve` | Run the gateway |
 | `aha-open open` | Open the bundled web page in a browser |
 | `aha-open loras add FILE` · `list` · `remove ID` | Manage the LoRA files the server offers |
+| `/ui/` ▸ *Manage LoRA files* | The same add/remove from the web page, on the machine that runs AHA open (local profile only); **Refresh** re-reads the list |
 | `aha-open clients create --name "Laptop An"` | Create a token by hand (printed once) |
 | `aha-open clients approve <code>` / `revoke <id>` | Approve a pairing / revoke a client |
 | `aha-open tls fingerprint` | Print the certificate fingerprint (lan profile) |
@@ -133,7 +135,7 @@ docs/
 ## 8. Invariants
 
 1. The gateway does not import torch (a test runs in a child process and checks `sys.modules`).
-2. There is no route besides `/v1/*`, the static files `/ui/*` (the web page — it only calls `/v1`) and `/admin/*` if an admin page exists (loopback only).
+2. There is no route besides `/v1/*`, the static files `/ui/*` (the web page — it only calls `/v1` and `/admin/loras`) and `/admin/loras*` (the LoRA manager: only in the `local` profile, only for a loopback peer asking for a loopback name, and it still needs a token; every other case answers `404`).
 3. No pixel or prompt leaves the machine except in the response to the client that sent it.
 4. The output size is exactly the accepted `params`; there is no silent resize.
 5. A job that has been `cancelled` never has a result.

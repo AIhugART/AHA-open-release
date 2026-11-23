@@ -86,9 +86,30 @@ What was read from its public page and file list (2026-11-23; ✅ read, nothing 
 | VAEs (required by every build) | video 4.85 GiB + audio 0.56 GiB |
 | Page claims (third party, **not verified**) | the mixed INT4/INT8 file "requires 15+ VRAM (~15.5 GB)"; INT8 "24GB+ VRAM"; text encoders in `/text_encoders` (15.0–27.1 GB) |
 
+#### Safetensors headers read (✅ 2026-11-23, HTTP Range only, nothing downloaded)
+
+Read: 8-byte length + the JSON header (95–103 KB) of three FL2VA files, by `Range` requests against `resolve/main`.
+
+| File | Tensors | Quantization (from the files themselves) | Dtypes |
+|---|---|---|---|
+| `…FL2VA_pruned_int8_convrot` | 932 | per-layer `*.comfy_quant` = `{"format": "convrot_w4a4", "convrot_groupsize": 256, "linear_dtype": "int8"}` | I8 ×200, U8 ×200, F32 ×210, BF16 ×220, F16 ×102 |
+| `…FL2VA_pruned_mixed_int4_int8_convrot` | 932 | same format; metadata `convrot_w4a4_mixed`: `"w4a4_int8mm_layers": 117, "int8_layers": 83, "linear_dtype": "int4"`, `"paper": "arXiv:2512.03673"` | same counts; `blocks.0.attn.out_proj.weight` I8 `[5376, 3584]` |
+| `…FL2VA_pruned_nvfp4` | same layout | `*.comfy_quant` = `{"format": "nvfp4"}`; `weight` U8, `weight_scale` F8_E4M3, `weight_scale_2` F32 | U8, F8_E4M3, BF16, F16, F32 |
+
+Facts: tensor names are ComfyUI-style (`blocks.N.attn.qkv_proj`, `blocks.N.mlp.fc1`, `blocks.N.adaln_proj.linear`, `token_refiner.*`,
+`adaln_t_table`), every quantized linear has a `*.comfy_quant` JSON blob, and the mixed file's metadata `config` gives `hidden_size 5376`,
+`num_layers 50`, `num_attention_heads 56`, `latents_dim 24`, `audio_latents_dim 32`, `patch_size [1,2,2]`. Dtypes are all standard.
+Inference (not observed): the mixed file's `out_proj` width 3584 = 7168/2 suggests two INT4 values packed per byte.
+
+Not read: the Ref2VA headers, the INT4-only files, the VAEs, and any `text_encoders/` file (none is listed at the revision above).
+
+**Consequence (✅ from the headers, ⬜ for the fix):** these are not diffusers checkpoints. Their key names and `comfy_quant` layout are
+not what `from_single_file` / the Qwen worker's diffusers code expects, and running ConvRot W4A4 needs a loader plus INT8/INT4 kernels that
+are not part of diffusers. "Load them with the diffusers worker" is therefore **refuted as stated**. MiniMax H3 support is paused until a runtime for this format is chosen.
+
 **Not known yet — do not treat as settled** (⬜):
-- The files are **single-file ComfyUI checkpoints of a "pruned" model**, not a diffusers pipeline folder. Whether AHA open's diffusers-based
-  worker can load them, and how much quality the pruning costs, has not been tried. This is the main risk of the decision.
+- The files are **single-file ComfyUI checkpoints of a "pruned" model**, not a diffusers pipeline folder. The header read above shows the
+  diffusers worker cannot load them as they are; which runtime can (and how much quality the pruning costs) has not been tried.
 - Which file the worker uses (the mixed INT4/INT8 file is the likely one for 24 GiB GPUs; NVFP4 excludes everything but Blackwell).
 - The text encoders named by the page do not appear in the file list read at that revision; they must be located before any install plan.
 - Peak VRAM, time per clip and quality on the RTX 3090 Ti: **to be measured**. `min_vram_mib` for this model is empty on purpose until it is.

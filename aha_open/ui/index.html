@@ -51,9 +51,27 @@
       <label id="transparentrow"><input id="transparent" type="checkbox"> Transparent background (RGBA)</label>
       <div id="sizenote" class="note"></div>
       <div id="lorabox" hidden>
-        <label>LoRA (optional)</label>
+        <div class="row" style="align-items:center">
+          <label style="flex:1 1 auto">LoRA (optional)</label>
+          <button id="lorarefresh" type="button" class="secondary" style="flex:0 0 auto" title="Read the list of LoRA from the server again">Refresh</button>
+        </div>
         <div id="loralist"></div>
         <div id="loranote" class="note"></div>
+        <details id="loraadmin" hidden style="margin-top:12px">
+          <summary>Manage LoRA files on this server</summary>
+          <p class="note">Only on the machine that runs AHA open. Files are checked (safetensors only) before they are offered.</p>
+          <label for="lorafile">LoRA file (.safetensors)</label><input id="lorafile" type="file" accept=".safetensors">
+          <div class="row">
+            <div><label for="loraid">Id</label><input id="loraid" type="text" autocomplete="off"></div>
+            <div><label for="loraname">Name shown</label><input id="loraname" type="text" autocomplete="off"></div>
+          </div>
+          <div class="row">
+            <div><label for="loratrigger">Trigger word (optional)</label><input id="loratrigger" type="text" autocomplete="off"></div>
+            <div><label for="lorascale">Default strength</label><input id="lorascale" type="text" inputmode="decimal" value="1"></div>
+          </div>
+          <p><button id="loraadd" type="button">Add LoRA</button> <span id="loraadmsg" class="note" role="status"></span></p>
+          <div id="loraadmlist"></div>
+        </details>
       </div>
     </div>
     <div id="videobox" hidden>
@@ -105,9 +123,81 @@ async function connect() {
   }
   say($("status"), `Connected to ${manifest.provider.name} ${manifest.provider.version} (profile ${manifest.profile}).`);
   $("make").hidden = false;
-  $("model").innerHTML = ""; for (const mod of manifest.models) $("model").add(new Option(mod.display_name + (mod.state === "ready" ? "" : " - " + mod.state), mod.id));
+  fillModels();
   onModel();
+  loadAdmin();
 }
+
+function fillModels() {
+  $("model").innerHTML = "";
+  for (const mod of manifest.models) $("model").add(new Option(mod.display_name + (mod.state === "ready" ? "" : " - " + mod.state), mod.id));
+}
+
+// Read the manifest again (a LoRA may have been added or removed) and keep what the user had chosen.
+async function refreshManifest() {
+  const model = $("model").value, task = $("task").value, picks = {};
+  for (const r of document.querySelectorAll("#loralist .lora")) {
+    const cb = r.querySelector("input[type=checkbox]"); picks[cb.dataset.id] = { on: cb.checked, scale: r.querySelector("input[type=text]").value };
+  }
+  manifest = await (await api("/v1/manifest")).json();
+  fillModels();
+  if (manifest.models.some(x => x.id === model)) $("model").value = model;
+  onModel();
+  if ([...$("task").options].some(o => o.value === task)) { $("task").value = task; onTask(); }
+  for (const r of document.querySelectorAll("#loralist .lora")) {
+    const cb = r.querySelector("input[type=checkbox]"), p = picks[cb.dataset.id];
+    if (p) { cb.checked = p.on; r.querySelector("input[type=text]").value = p.scale; }
+  }
+}
+
+// ---- LoRA management: the server answers 404 unless this page runs on the machine itself (local profile), then it stays hidden.
+async function loadAdmin() {
+  let res;
+  try { res = await (await api("/admin/loras")).json(); } catch (e) { $("loraadmin").hidden = true; return; }
+  $("loraadmin").hidden = false;
+  const list = $("loraadmlist"); list.replaceChildren();
+  for (const l of res.loras) {
+    const row = document.createElement("div"); row.className = "lora";
+    const label = document.createElement("span"); label.textContent = `${l.display_name} (${l.id}, ${(l.bytes / 2 ** 20).toFixed(0)} MB)`;
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "secondary"; rm.textContent = "Remove";
+    rm.addEventListener("click", () => removeLora(l));
+    row.append(label, rm); list.append(row);
+  }
+  for (const p of res.problems) { const d = document.createElement("div"); d.className = "note err"; d.textContent = p; list.append(d); }
+}
+
+async function removeLora(l) {
+  if (!confirm(`Remove "${l.display_name}" from this server? A job that is already waiting and uses it will fail.`)) return;
+  try { await api("/admin/loras/" + encodeURIComponent(l.id), { method: "DELETE" }); } catch (e) { say($("loraadmsg"), e.message, "err"); return; }
+  say($("loraadmsg"), `Removed ${l.id}.`);
+  await refreshManifest(); await loadAdmin();
+}
+
+async function addLora() {
+  const file = $("lorafile").files[0], msg = $("loraadmsg"), id = $("loraid").value.trim();
+  if (!file) { say(msg, "Choose a .safetensors file first.", "err"); return; }
+  if (!id) { say(msg, "Give the LoRA an id (lowercase letters, digits, - or _).", "err"); return; }
+  const q = new URLSearchParams();
+  for (const [key, el] of [["name", "loraname"], ["trigger", "loratrigger"], ["scale", "lorascale"]]) if ($(el).value.trim()) q.set(key, $(el).value.trim());
+  $("loraadd").disabled = true; say(msg, `Sending ${(file.size / 2 ** 20).toFixed(0)} MB and checking it...`);
+  try {
+    await api(`/admin/loras/${encodeURIComponent(id)}?${q}`, { method: "PUT", body: file });
+    say(msg, `Added ${id}. It is in the list above.`);
+    $("lorafile").value = ""; for (const el of ["loraid", "loraname", "loratrigger"]) $(el).value = "";
+    await refreshManifest(); await loadAdmin();
+  } catch (e) { say(msg, e.message, "err"); } finally { $("loraadd").disabled = false; }
+}
+
+$("lorafile").addEventListener("change", () => {
+  const f = $("lorafile").files[0]; if (!f) return;
+  const stem = f.name.replace(/\.safetensors$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!$("loraid").value) $("loraid").value = stem.slice(0, 64);
+  if (!$("loraname").value) $("loraname").value = f.name.replace(/\.safetensors$/i, "");
+});
+$("loraadd").addEventListener("click", addLora);
+$("lorarefresh").addEventListener("click", async () => {
+  try { await refreshManifest(); await loadAdmin(); } catch (e) { say($("loranote"), "Could not read the list: " + e.message, "err"); }
+});
 
 function badge(text, cls) { const s = document.createElement("span"); s.className = "badge " + cls; s.textContent = text; return s; }
 function currentModel() { return manifest.models.find(x => x.id === $("model").value); }
@@ -137,7 +227,7 @@ function onTask() {
     $("steps").value = caps.steps ? caps.steps.default : ""; $("transparentrow").hidden = !caps.rgba;
     const native = (caps.sizes || []).some(s => s.tier === "native");
     const lc = caps.loras, list = $("loralist"); list.replaceChildren();
-    $("lorabox").hidden = !(lc && lc.available && lc.available.length);
+    $("lorabox").hidden = !lc;  // shown for every model that takes LoRA, even with none installed: the Refresh button and the manager live here
     for (const l of (lc && lc.available) || []) {
       const row = document.createElement("div"); row.className = "lora";
       const cb = document.createElement("input"); cb.type = "checkbox"; cb.dataset.id = l.id; cb.id = "lora_" + l.id;
@@ -148,7 +238,8 @@ function onTask() {
       if (l.license) row.append(badge(l.license, ""));
       list.append(row);
     }
-    $("loranote").textContent = lc && lc.available && lc.available.length ? `Up to ${lc.max} at once; strength ${lc.scale.min} to ${lc.scale.max}. Put the trigger words in your prompt.` : "";
+    $("loranote").className = "note";
+    $("loranote").textContent = !lc ? "" : lc.available && lc.available.length ? `Up to ${lc.max} at once; strength ${lc.scale.min} to ${lc.scale.max}. Put the trigger words in your prompt.` : "No LoRA is installed on this server yet.";
     $("sizenote").textContent = native ? "1k sizes are fast. Native sizes are the model's own and can need much more GPU memory (they may be very slow on a 24 GB card)." : "";
   } else {
     const fill = (el, list) => { el.innerHTML = ""; for (const v of list || []) el.add(new Option(v, v)); };

@@ -104,12 +104,8 @@ def _sidecar(path: Path) -> dict:
     return data
 
 
-def _load(path: Path) -> Lora:
-    lora_id = path.stem
-    if not ID_RE.match(lora_id):
-        raise LoraError(f"{path.name}: the file name (without .safetensors) must be lowercase letters, digits, '-' or '_' (at most 64)")
-    check_safetensors(path)
-    meta = _sidecar(path)
+def check_meta(lora_id: str, meta: dict) -> tuple[float, dict]:
+    """(default scale, the four texts) of a LoRA's sidecar. One rule for files an operator wrote and for the admin page."""
     scale = meta.get("default_scale", 1.0)
     if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not 0 < scale <= 2:
         raise LoraError(f"{lora_id}.json: default_scale must be a number above 0 and at most 2")
@@ -119,6 +115,15 @@ def _load(path: Path) -> Lora:
         if not isinstance(value, str) or len(value) > 500:
             raise LoraError(f"{lora_id}.json: {key} must be a text of at most 500 characters")
         texts[key] = value
+    return float(scale), texts
+
+
+def _load(path: Path) -> Lora:
+    lora_id = path.stem
+    if not ID_RE.match(lora_id):
+        raise LoraError(f"{path.name}: the file name (without .safetensors) must be lowercase letters, digits, '-' or '_' (at most 64)")
+    check_safetensors(path)
+    scale, texts = check_meta(lora_id, _sidecar(path))
     return Lora(
         id=lora_id, path=path.resolve(), bytes=path.stat().st_size, display_name=texts["display_name"] or lora_id,
         default_scale=float(scale), trigger=texts["trigger"], license=texts["license"], notes=texts["notes"],
@@ -147,8 +152,11 @@ def scan(cfg: Config) -> tuple[dict[str, Lora], list[str]]:
     return found, problems
 
 
-def add(cfg: Config, source: Path, lora_id: str | None = None, **meta: object) -> Lora:
-    """Validate and copy a LoRA into the server's folder (atomic: a half-copied file is never offered)."""
+def add(cfg: Config, source: Path, lora_id: str | None = None, move: bool = False, **meta: object) -> Lora:
+    """Validate and copy (or, with move=True, rename) a LoRA into the server's folder.
+
+    Atomic: a half-copied file is never offered, and nothing is written when the file or its details are refused.
+    """
     source = Path(source)
     if not source.is_file():
         raise LoraError(f"{source} is not a file")
@@ -158,14 +166,18 @@ def add(cfg: Config, source: Path, lora_id: str | None = None, **meta: object) -
     if not ID_RE.match(lora_id):
         raise LoraError(f"id {lora_id!r} is not allowed: use lowercase letters, digits, '-' or '_' (at most 64)")
     check_safetensors(source)
+    clean = {k: v for k, v in meta.items() if v not in (None, "")}
+    check_meta(lora_id, clean)  # refuse bad details before anything is written, not after
     folder = lora_dir(cfg)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"{lora_id}.safetensors"
     if target.exists():
         raise LoraError(f"a LoRA with id {lora_id!r} already exists; remove it first or choose another id")
     partial = target.with_suffix(".tmp")
-    shutil.copyfile(source, partial)
-    clean = {k: v for k, v in meta.items() if v not in (None, "")}
+    if move:
+        source.replace(partial)
+    else:
+        shutil.copyfile(source, partial)
     if clean:
         target.with_suffix(".json").write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
     partial.replace(target)

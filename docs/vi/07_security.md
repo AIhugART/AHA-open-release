@@ -39,6 +39,7 @@
 12. **`local_client.token`** (hồ sơ `local`) chỉ ghi khi hồ sơ là `local`, quyền đọc chỉ cho người dùng hiện tại; xoá
     khi đổi sang hồ sơ khác.
 13. **Model có nghĩa vụ "hosted service"** (MiniMax H3) tắt mặc định ở hồ sơ `internet`.
+14. **`/admin` dành cho người ngồi tại máy.** Chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`. Chỉ cần người gọi là loopback là chưa đủ: ở hồ sơ `internet`, tunnel kết nối từ `127.0.0.1`.
 
 ## 4. Test âm tính bắt buộc (bộ kiểm hợp chuẩn)
 
@@ -56,6 +57,10 @@
 | Token đã thu hồi | `401` ngay lần gọi kế tiếp |
 | Hồ sơ `lan`/`internet` | không có `local_client.token` trên đĩa |
 | Hồ sơ `internet`, MiniMax chưa chấp nhận nghĩa vụ | model `state` không phải `ready`, job bị từ chối |
+| `/admin/loras` ở hồ sơ `lan`/`internet`, kể cả có token hợp lệ và `Host: 127.0.0.1` | `404`, không ghi gì |
+| `/admin/loras` không token / sai token | `401`, không ghi gì |
+| `/admin/loras` với `Host` hoặc `Origin` lạ | `403`, không ghi gì |
+| Tải lên qua trang quản trị một file không phải LoRA, id sai hoặc thông tin sai | `400`, không để lại gì trong `loras/` hay `tmp/` |
 | Tìm kiếm phủ định: prompt/token mẫu trong log và file trạng thái | 0 lần khớp |
 
 ## 5. Trách nhiệm của người vận hành
