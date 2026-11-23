@@ -1,3 +1,9 @@
+# Without a [build-system] uv treats this as a "virtual" project: `uv sync` installs the dependencies but NOT `aha_open`
+# itself, so the `aha-open` command (the README quick start) does not exist and a bare `pytest` cannot import `aha_open`.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "aha-open"
 version = "0.1.0.dev0"
