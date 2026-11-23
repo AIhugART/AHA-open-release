@@ -8,6 +8,7 @@ Memory plan: the INT8 model always uses model-level CPU offload (the full BF16 m
 
 from __future__ import annotations
 
+import faulthandler
 import json
 import os
 import queue
@@ -26,6 +27,30 @@ RGBA_SUFFIX = " The image has alpha channel and the background is transparent."
 
 class Cancelled(Exception):
     pass
+
+
+STARTED = time.monotonic()
+
+
+def install_crash_diagnostics() -> None:
+    """A native crash (access violation, segfault) skips every `except` and leaves the gateway only an exit code.
+
+    faulthandler writes the Python stack of every thread to stderr - the worker log - at that moment, so the log says
+    which line was running. Passive: it only fires when the process is already dying.
+    """
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+
+
+def stage(label: str) -> None:
+    """One log line with elapsed time and memory, so a crash shows how far loading got and how much RAM was left.
+
+    Never carries a prompt, a token or a path from a request; only a fixed label, seconds and gibibytes.
+    """
+    import psutil
+
+    rss = psutil.Process().memory_info().rss / 2**30
+    available = psutil.virtual_memory().available / 2**30
+    print(f"[worker +{time.monotonic() - STARTED:6.1f}s rss={rss:.1f}GiB ram_available={available:.1f}GiB] {label}", file=sys.stderr, flush=True)
 
 
 def emit(message: dict) -> None:
@@ -133,17 +158,23 @@ def load_pipeline(variant: str, weights: str, gpu: int):
     path = str(weights)
     components = {}
     for name, cls in (("transformer", QwenImage21Transformer2DModel), ("text_encoder", Qwen3VLForConditionalGeneration)):
+        stage(f"load {name}: reading weights")
         part = cls.from_pretrained(path, subfolder=name, dtype=torch.bfloat16, local_files_only=True)
+        stage(f"load {name}: weights read")
         if not getattr(part, "is_loaded_in_8bit", False):
             raise RuntimeError(f"{name} in {path} is not a saved bitsandbytes INT8 component")
         keep_int8_state_on_device(part)
         part.to("cpu")  # one component at a time, so the load never peaks on the GPU
         torch.cuda.empty_cache()
+        stage(f"load {name}: on cpu")
         components[name] = part
+    stage("load pipeline: assembling")
     pipe = QwenImage21Pipeline.from_pretrained(path, dtype=torch.bfloat16, local_files_only=True, **components)
     for name in ("text_encoder", "transformer"):
         keep_int8_state_on_device(getattr(pipe, name))
+    stage("load pipeline: enabling model cpu offload")
     pipe.enable_model_cpu_offload(gpu_id=gpu)
+    stage("load pipeline: ready")
     return pipe, "model_cpu_offload"
 
 
@@ -276,6 +307,7 @@ def run(pipe, kv_cache_flag: bool, msg: dict) -> None:
 
 
 def main() -> None:
+    install_crash_diagnostics()
     threading.Thread(target=reader, daemon=True).start()
     pipe = None
     kv_cache = True

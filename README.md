@@ -32,6 +32,10 @@ On the machine that runs AHA open, the web page can also add and remove LoRA fil
 A wheel can be built with `uv build`; it carries the worker sources and the web page, and `aha-open models install` creates
 the worker's own environment from its lock file.
 
+**Tests:** `uv run pytest` (no GPU needed). Seven tests are skipped until the Qwen worker's own environment exists inside the
+checkout: `cd workers/qwen_image && uv sync --frozen` (this is a separate environment from the one `aha-open models install`
+creates under the data directory, ~5 GB).
+
 ## v1 goals
 
 | Model | What it does | Notes |

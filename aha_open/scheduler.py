@@ -20,7 +20,7 @@ from .config import Config, ModelConfig
 from .errors import ApiError
 from .store import ACTIVE, TERMINAL, Store
 from .util import now, png_size, sha256_file
-from .worker_proc import WorkerProc
+from .worker_proc import WorkerProc, describe_exit
 
 log = logging.getLogger("aha_open.scheduler")
 
@@ -287,7 +287,7 @@ class Scheduler:
                 if self._cancelled(job_id):
                     self._finish_cancelled(job_id)
                     return
-                raise LaneError("generation_failed", f"the worker stopped unexpectedly (exit code {event.get('code')})")
+                raise LaneError("generation_failed", f"while generating: {describe_exit(event.get('code'), worker.log_name)}")
 
     def _collect(self, jobdir: Path, event: dict, accepted: dict, loras: list[dict]) -> list[dict]:
         outputs = event.get("outputs")
@@ -362,7 +362,7 @@ class Scheduler:
                     raise LaneError(code if code in WORKER_ERROR_CODES else "generation_failed", str(event.get("message", "loading the model failed")))
                 if kind == "exited":
                     lane.degraded = True
-                    raise LaneError("generation_failed", f"the worker stopped while loading the model (exit code {event.get('code')})")
+                    raise LaneError("generation_failed", f"while loading the model: {describe_exit(event.get('code'), worker.log_name)}")
         finally:
             lane.loading = None
 

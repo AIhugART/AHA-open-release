@@ -121,3 +121,25 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8890/v1/manifest
 
 From another machine (lan): `curl --cacert <certificate> https://192.168.1.20:8890/v1/health`.
 Over the internet: `curl -H "CF-Access-Client-Id: …" -H "CF-Access-Client-Secret: …" https://aha-open.example.com/v1/health`.
+
+## 6. When the worker process dies
+
+A job can fail with a message such as `while loading the model: the worker crashed in native code (access violation) (exit
+code 3221225477 = 0xC0000005). The request is not the cause; try again, and if it repeats report it with that log.
+worker-qwen_image.log in the server's logs folder shows where it stopped.` The error `code` stays `generation_failed`.
+
+- The message names the cause the operating system reported (a crash, or running out of memory) and gives different advice
+  for each: memory problems say to free memory; a crash says the request is not the cause. The client is told only the log's
+  **file name**, never a server path.
+- The log is `<data dir>/logs/worker-<family>.log`. While a model loads the worker writes lines like
+  `[worker +  41.2s rss=14.3GiB ram_available=9.8GiB] load text_encoder: weights read` (seconds since the worker started,
+  the worker's memory, and the RAM still free), so a crash shows **how far loading got and how much RAM was left**. If the
+  process dies natively, `faulthandler` also writes the Python stack of every thread (`Windows fatal exception: access
+  violation` / `Fatal Python error: Segmentation fault`), which says which line was running.
+- Memory is thin on a 32 GiB machine: loading the INT8 Qwen build makes the worker hold about **17.6 GiB** of RAM (measured on
+  an RTX 3090 Ti machine, 31.7 GiB RAM), which left 1.8–4.5 GiB free while other programs used the rest. With less free RAM the
+  load still finishes, only slower (132 s instead of 87 s in a test with 5.8 GiB free at the start), because Windows moves the
+  worker's memory to the page file; keep free space on the drive that holds the page file.
+- A native crash while loading was seen once (exit code 3221225477, cold first load) and could not be reproduced afterwards, so
+  its cause is not known; the lines above are what will show it if it happens again.
+- Nothing is retried automatically: a retry costs GPU minutes, so the client decides. The next job starts a fresh worker.

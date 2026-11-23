@@ -4,6 +4,8 @@ so the gateway and the conformance suite can be exercised end to end without a m
 Prompt markers (tests only) make it misbehave on purpose:
   __fail_oom  gpu_out_of_memory     __fail  generation_failed     __slow  200 steps (time to cancel)
   __wrongsize PNG of the wrong size __ignorecancel  never honours cancel     __crash  dies mid-job
+  __crash_native  dies the way a real native crash does (access violation / SIGSEGV)
+Environment (tests only): AHA_FAKE_CRASH_ON_LOAD=native  dies natively while loading the model.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import signal
 import struct
 import sys
 import threading
@@ -28,6 +31,13 @@ cancelled: set[str] = set()
 def emit(message: dict) -> None:
     sys.stdout.write(json.dumps(message) + "\n")
     sys.stdout.flush()
+
+
+def die_natively() -> None:
+    """Die like a real native crash: no Python exception, no `failed` event, only an exit status."""
+    if sys.platform == "win32":
+        os._exit(-1073741819)  # STATUS_ACCESS_VIOLATION 0xC0000005 as the signed 32-bit int _exit takes; the parent sees 3221225477
+    os.kill(os.getpid(), signal.SIGSEGV)
 
 
 def reader() -> None:
@@ -71,6 +81,8 @@ def run(msg: dict) -> None:
         if not Path(lora["path"]).is_file():
             emit({"event": "failed", "job_id": job_id, "code": "generation_failed", "message": "a LoRA file is missing"})
             return
+    if "__crash_native" in prompt:
+        die_natively()
     if "__crash" in prompt:
         os._exit(3)
     if "__fail_oom" in prompt:
@@ -110,6 +122,8 @@ def main() -> None:
         op = msg.get("op")
         if op == "load":
             time.sleep(LOAD_S)
+            if os.environ.get("AHA_FAKE_CRASH_ON_LOAD") == "native":
+                die_natively()
             emit({"event": "loaded", "model": msg.get("model"), "vram_peak_mib": 0})
         elif op == "run":
             run(msg)

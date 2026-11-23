@@ -92,6 +92,27 @@ def test_failure_codes_come_from_the_worker(gw, api):
     assert api.get(f"/v1/jobs/{oom['id']}").json()["status"] == "failed"  # nothing re-ran the failed job on its own
 
 
+def test_a_native_worker_crash_gives_the_operator_something_to_act_on(gw, api):
+    """A real crash leaves no Python exception, only an exit status. The error must say what happened and where to look,
+    without revealing a server path to the client, and the lane must recover."""
+    crash = api.wait(api.job(image_job("p __crash_native")).json()["id"])
+    message = crash["error"]["message"]
+    assert crash["status"] == "failed" and crash["error"]["code"] == "generation_failed"
+    assert message.startswith("while generating:") and "crashed in native code" in message
+    assert "worker-fake.log" in message and str(gw.cfg.data_dir) not in message
+    assert api.wait(api.job(image_job("fine")).json()["id"])["status"] == "succeeded"
+
+
+def test_a_native_crash_while_loading_the_model_is_described_too(monkeypatch, make_gateway):
+    monkeypatch.setenv("AHA_FAKE_CRASH_ON_LOAD", "native")
+    gw = make_gateway()
+    api = Api(gw.base, gw.tokens["local"])
+    failed = api.wait(api.job(image_job()).json()["id"])
+    message = failed["error"]["message"]
+    assert failed["status"] == "failed" and message.startswith("while loading the model:")
+    assert "crashed in native code" in message and "worker-fake.log" in message
+
+
 def test_cancel_queued_and_running_and_never_a_result(gw, api):
     running_id = api.job(image_job("p __slow")).json()["id"]
     queued_id = api.job(image_job("later")).json()["id"]
