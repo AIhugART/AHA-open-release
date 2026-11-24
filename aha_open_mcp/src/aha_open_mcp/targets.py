@@ -1,4 +1,4 @@
-"""Which server a call talks to: the operator's `live` server or a throwaway `sandbox`.
+"""Which server a call talks to: the operator's `live` server or a throwaway `sandbox` (plan D3).
 
 A target is only a data directory and a base URL. Tokens are read from the data directory's token file when needed and
 are never put into anything a tool returns.

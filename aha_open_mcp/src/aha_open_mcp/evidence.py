@@ -1,5 +1,5 @@
-"""Every tool output starts with a header that says what the evidence is worth and whether the tool or the
-server runs older code than the files on disk."""
+"""Every tool output starts with a header that says what the evidence is worth (plan D12) and whether the tool or the
+server runs older code than the files on disk (plan D5)."""
 
 from __future__ import annotations
 

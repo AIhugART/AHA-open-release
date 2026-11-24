@@ -81,6 +81,39 @@ def cmd_open(args: argparse.Namespace) -> int:
     return 0
 
 
+def _tell(text: str, gui: bool, ok: bool = True) -> None:
+    """Print; with --gui (the Start-menu shortcuts run without a console) also show a box, because a failure nobody sees is no answer."""
+    print(text)
+    if gui and sys.platform == "win32":
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(None, text, "AHA open", 0x40 if ok else 0x10)
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    from . import launcher
+
+    cfg = _load(args)
+    ok, text = launcher.start(cfg)
+    if not ok:
+        _tell(text, args.gui, ok=False)
+        return 1
+    print(text)
+    if args.no_open:
+        return 0
+    return cmd_open(argparse.Namespace(data_dir=args.data_dir, print_only=False))
+
+
+def cmd_stop(args: argparse.Namespace) -> int:
+    from . import launcher
+
+    ok, text = launcher.stop(_load(args))
+    if args.quiet:
+        return 0 if ok else 1
+    _tell(text, args.gui, ok=ok)
+    return 0 if ok else 1
+
+
 def cmd_models(args: argparse.Namespace) -> int:
     cfg = _load(args)
     if args.action == "list":
@@ -319,6 +352,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("serve", help="run the gateway")
     s.set_defaults(func=cmd_serve)
+
+    s = sub.add_parser("start", help="start the gateway in the background if needed, then open the web page (local profile)")
+    s.add_argument("--no-open", action="store_true", help="do not open the browser")
+    s.add_argument("--gui", action="store_true", help="show a message box on failure (used by the Start-menu shortcut)")
+    s.set_defaults(func=cmd_start)
+
+    s = sub.add_parser("stop", help="stop the gateway that `aha-open start` started")
+    s.add_argument("--gui", action="store_true", help="show a message box (used by the Start-menu shortcut)")
+    s.add_argument("--quiet", action="store_true", help="print and show nothing (used by the uninstaller)")
+    s.set_defaults(func=cmd_stop)
 
     s = sub.add_parser("open", help="open the bundled web page in your browser")
     s.add_argument("--print-only", action="store_true", help="do not start a browser")

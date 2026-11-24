@@ -18,6 +18,90 @@ aha-open models install qwen-image-2.1 --accept-license qwen-research           
 aha-open doctor
 ```
 
+## 0.1 Windows installer (Windows 10/11, 64-bit)
+
+`AHA-Open-Setup-<version>.exe` is a small installer (about 16 MiB: `uv` and the AHA open wheel; **no** PyTorch, **no** model weights). It
+installs for the current user only (no administrator rights) into `%LOCALAPPDATA%\Programs\AHA open`, creates a Python environment for the
+gateway with `uv` (the first time this downloads Python, so it needs the internet), pins every dependency to the versions in `uv.lock`, and
+writes the default `local` configuration. Your settings, models and images live apart, in `%LOCALAPPDATA%\AHA-open`.
+
+| Step | What you do |
+|---|---|
+| Install | Run the `.exe`. It is **not code-signed**, so Windows SmartScreen may warn the first time; compare the file's SHA-256 with `SHA256SUMS` on the release page |
+| First start | Start menu ▸ *AHA open* (or the *Start AHA open now* box at the end of the setup). It starts the gateway in the background — no console window — and opens the web page |
+| The model | The model is **not** downloaded by the installer. The page shows *Download a Model* with the licence; tick the box and press the button ([05_models.md](05_models.md), [04_architecture.md](04_architecture.md) section 6.1). About 18 GB, plus the model's own Python environment |
+| Stop | Start menu ▸ *Stop AHA open* (it also stops a download in progress) |
+| Uninstall | Settings ▸ Apps. It stops the gateway first and **keeps your models and settings** unless you answer *Yes* to the question about deleting them (a silent uninstall keeps them) |
+
+A failed install says why — no internet / no free disk / Windows refused to write — and leaves nothing behind (it exits with a non-zero
+code and no entry in *Add or remove programs*). The model download is refused before it starts if there is no NVIDIA GPU (or less than
+~10 GiB of VRAM), or less than ~20 GB of free disk. macOS is not supported in v1.
+
+Evidence: ✅ the built installer was installed into a temporary folder with a temporary data folder; the installed packages matched the pins
+and contained no PyTorch; it was uninstalled (program files gone, data kept); a second install over the first upgraded it with a single
+*Add or remove programs* entry; two real network failures (offline, a dead proxy) exited non-zero, registered nothing and explained
+themselves. 🧪 the guards in `tests/test_windows_installer.py`. ⬜ Not yet seen: the interactive wizard (only the silent path was run),
+the SmartScreen prompt, a machine with no Python at all (Python 3.12 was already on the test machine). There is no icon yet.
+✅ End to end on a real machine: installed, started with the shortcut's command, the model downloaded through the page (cut off once
+and continued), the reference picture generated (sha256 identical to the P0 measurement, [05_models.md](05_models.md)), then
+uninstalled with the program removed and the data kept.
+
+**Correction (2026-11-24).** The first smoke runs started the gateway with `python -m aha_open.cli` from the source checkout; `-m` puts the
+*current folder* first on `sys.path`, so they exercised the checkout, not the installed package (users were not affected: the shortcut starts
+in the install folder). The smoke now runs everything from a neutral folder, checks that `aha_open` is imported from the installed
+environment and that the running gateway's `source_digest` (`run/gateway.json`) equals the digest of the installed files; `aha-open start`
+and the web page's model install also start their child processes in the data folder for the same reason. Only the evidence from
+the fixed smoke counts.
+
+### Building it (maintainers)
+
+```powershell
+winget install JRSoftware.InnoSetup        # Inno Setup 6; ISCC.exe is NOT put on PATH, the build script finds it
+python windows_installer/build_installer.py --smoke     # tests -> wheel -> installer -> install it into a temp folder, run it, uninstall
+python windows_installer/build_installer.py --check-tag v0.1.0-dev1    # a tag must match the one version in pyproject.toml
+```
+
+The build refuses: uncommitted changes under the packaged paths (a build packs the working tree, not a commit; `--allow-dirty` to try one),
+red tests (`AHA_OPEN_BUILD_SKIP_QUALITY_GATE=1` skips them, loudly), a wheel that needs PyTorch or carries model weights, missing dependency
+pins, and a size outside 10–80 MiB. `--smoke-offline` installs with the internet made unreachable and checks it fails cleanly.
+The build writes `dist/AHA-Open-Setup-<version>.exe`, the wheel it contains and `dist/SHA256SUMS` (exactly those two files).
+
+### Publishing a release (maintainers)
+
+Every step that is public (the snapshot push, the GitHub Release) is a decision of the project owner each time.
+
+1. **One version, never reused.** `pyproject.toml` and `aha_open/__init__.py` carry the same number (and `uv lock` is run). A number that is
+   already public is never used again for different bytes: a release whose wheel differs from the wheel inside its installer is a
+   different build and gets a new number.
+2. `python windows_installer/build_installer.py --smoke` (clean tree, tests, then the real installer installed, run and uninstalled).
+3. `python windows_installer/build_installer.py --check-tag v<version>`; `gh auth status`.
+4. *(public)* `python tools/release/snapshot.py OUT_DIR` writes the public tree from `HEAD` (committed bytes only; it fails if a top-level
+   folder is not classified in `tools/release/`); push it to the public release repository.
+5. *(public)* **Upload first, then say so anywhere else:** `gh release create v<version> --repo <public repo> --prerelease --notes-file NOTES
+   dist/AHA-Open-Setup-<version>.exe dist/aha_open-<version>-py3-none-any.whl dist/SHA256SUMS`.
+6. Verify from the outside, anonymously: download the three assets from the release page and run `sha256sum -c SHA256SUMS`
+   (PowerShell: `Get-FileHash`). "The upload finished" is not the check.
+7. Only then update whatever points at the release (a download page) with the hashes **read from the release**, not typed from memory.
+
+| If you already did… | Take it back by… | Careful |
+|---|---|---|
+| Uploaded the wrong asset | `gh release upload --clobber` with the right file | Do not delete an asset someone may already link to |
+| Published the wrong version | `gh release edit --draft` to hide it, then publish a **new** number | Never reuse a public number |
+| Pointed a page at the wrong file | Fix the page and publish it again | Fastest of all: no binary changes |
+
+### Problems met while building (symptom → cause → what to do)
+
+| Symptom | Cause | What to do |
+|---|---|---|
+| "ISCC not found" although Inno Setup is installed | `winget` installs it per user and does not add it to `PATH` | The build script looks in `%LOCALAPPDATA%\Programs\Inno Setup 6`; check with `winget list --id JRSoftware.InnoSetup` |
+| A silent uninstall started from Git Bash hangs on a window | MSYS rewrites `/VERYSILENT` into `C:/Program Files/Git/VERYSILENT` | Use PowerShell (`Start-Process … -ArgumentList "/VERYSILENT"`) or `MSYS_NO_PATHCONV=1` |
+| A failed install exited 0 and stayed in *Add or remove programs* | The environment was built after the files were registered; Inno only logs an exception raised there | It is built in `PrepareToInstall`; `--smoke-offline` guards it |
+| The smoke passed but tested the source checkout | `python -m aha_open.cli` puts the current folder first on `sys.path` | The smoke runs from a neutral folder and compares `source_digest`; `start` and the model install start their children in the data folder |
+| "weights found in the installer" for a few bytes | `.pth` is also a Python path file (`_virtualenv.pth`) | A file counts as weights by suffix **and** size (≥ 10 MiB) |
+| The offline failure said only "could not be prepared" | The marker list did not contain uv's real wording | Markers come from real logs kept in `tests/fixtures/installer/`; add the new log when a new wording appears |
+| The page's progress bar stayed at 0% for minutes | `hf-xet` keeps the bytes in its own cache and assembles each file at the end | The bar uses the downloader's own byte count (`AHAOPEN_PROGRESS`) |
+| A cut-off download was reported *ready* and *Download* did not continue | `model_index.json` is among the first files to arrive | Unfinished = a `.incomplete` file, or hf began and no `install.json` ended it |
+
 ## 1. The `local` profile — the client on the same machine
 
 ```bash

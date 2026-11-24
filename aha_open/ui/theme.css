@@ -133,6 +133,12 @@ summary:hover { color: var(--accent-bright); }
 #go:disabled::before { content: "◌"; }
 .bar { height: 5px; background: rgba(125, 183, 229, .13); border-radius: 99px; overflow: hidden; margin: 14px 0 10px; }
 .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-bright)); }
+.bar > i.indeterminate { width: 40% !important; animation: slide 1.4s ease-in-out infinite; }
+@keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .bar > i.indeterminate { animation: none; width: 100% !important; opacity: .6; } }
+#setup { margin-bottom: 24px; }
+.setup-model { padding: 8px 0 4px; }
+.setup-model + .setup-model { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 18px; }
 #jobline, #outinfo { font-variant-numeric: tabular-nums; }
 .preview-panel { padding: 26px; }
 .preview-panel .panel-heading { margin-bottom: 0; }

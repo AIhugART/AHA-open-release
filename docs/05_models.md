@@ -43,6 +43,26 @@
 Consequence: the AHA open operator is responsible for using Qwen within its license (the model install command requires
 `--accept-license`). A client only shows `commercial_use: not_allowed` from the manifest and has no Qwen-specific logic.
 
+**Installing from the web page (`/ui/`, local profile only).** The model is **not** downloaded when AHA open is installed; the first time the
+page is opened on the machine that runs it, a *Download a Model* panel shows the licence name, `commercial_use`, the licence's own `notes` text
+("Research or evaluation use only; a separate license is needed for commercial use."), a link to the full text, and a checkbox
+*"I have read the licence and I accept it."* The *Download model* button stays disabled until the box is ticked; ticking it is the web
+equivalent of `--accept-license qwen-research`, and the server refuses a request that does not carry that exact key. The page then shows the
+phase (checking → downloading with bytes of ~18 GB → setting up the image engine → finishing), can cancel (what was downloaded is kept), and
+says why it cannot start before anything is pressed: no NVIDIA GPU or less than ~10 GiB of VRAM, no `uv`, no download library, or less than
+~20 GB of free disk. How it works and the API: [04_architecture.md](04_architecture.md) section 6.1.
+
+Evidence: 🧪 the API (conformance tests with a fake install script) and ✅ the page driven in a real browser (Chromium via Playwright, a real
+gateway, a fake install script: licence and consent, progress phases, cancel button, network-failure sentence, low-disk sentence, no loop
+when an install ends with the model not ready). **Correction from the first real download:** the progress bar first measured the weights
+folder and stayed at 0% for minutes while data was arriving (`hf-xet` assembles files only at the end), a defect the fake script could not
+show because it wrote straight into the folder; the bar now uses the downloader's own byte count. ✅ **A complete real download through the
+page** (2026-11-24, RTX 3090 Ti, the Windows installer into a clean folder, running the installed code, not the checkout): the first
+attempt was cut off on purpose at 9.35 GiB, a second press continued it, and the model (INT8, 18 GB) plus its PyTorch environment were ready
+about 17 minutes after the second press; the first job loaded the model in ~120 s, the next took 42 s. `a lighthouse on a cliff at sunset, oil painting`,
+seed 42, 1:1: 1024×1024, 2 312 944 bytes, **sha256 `c142df9e…ba45` — identical to the P0 reference**, checked on the bytes downloaded from
+`/v1/jobs/{id}/result` and by looking at the picture. The connection gave 5–13 MB/s.
+
 Manifest: `"license": {"name": "Qwen RESEARCH LICENSE", "commercial_use": "not_allowed"}`.
 
 ## 2. MiniMax H3 (video with audio)

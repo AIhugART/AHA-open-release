@@ -127,7 +127,7 @@ def run_sandbox_start(fake_step_s: float = 0.02, crash_on_load: bool = False, re
 @_guard
 def run_ui_url() -> str:
     """The URL of the sandbox's web page with its token in the fragment (never sent over the network). SANDBOX ONLY: this prints a
-    token, which is acceptable only because it dies with the sandbox; a `live` token is never printed."""
+    token, which is acceptable only because it dies with the sandbox; a `live` token is never printed (plan D8b)."""
     t = resolve("sandbox")
     return (
         "SIDE EFFECTS: prints the sandbox's token (it stops working when run_sandbox_stop deletes the sandbox). "

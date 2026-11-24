@@ -1,4 +1,4 @@
-"""The gateway must not depend on the test harness or on the MCP SDK, the same way it must not import torch.
+"""The gateway must not depend on the test harness or on the MCP SDK (plan D13), the same way it must not import torch.
 
 AST scan of the gateway package: an import inside a docstring or a comment is not an import, and a lazy import inside a
 function still is one.

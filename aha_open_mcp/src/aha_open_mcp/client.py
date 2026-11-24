@@ -1,4 +1,4 @@
-"""A `/v1` client for the tools. Output is built by COPYING an allowlist of fields: a field added to the server
+"""A `/v1` client for the tools. Output is built by COPYING an allowlist of fields (plan D8): a field added to the server
 tomorrow is excluded until someone decides it is safe, instead of leaking until someone notices."""
 
 from __future__ import annotations

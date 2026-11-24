@@ -118,7 +118,7 @@ def cancel(target: Target, job_id: str) -> dict:
 
 
 def check_result_image(target: Target, job_id: str, index: int = 0) -> dict:
-    """Judge the PIXELS, not the status: the PNG header must say what the job's metadata says."""
+    """Judge the PIXELS, not the status: the PNG header must say what the job's metadata says (plan D11)."""
     job = view(target, job_id)
     try:
         with _http(target) as http:

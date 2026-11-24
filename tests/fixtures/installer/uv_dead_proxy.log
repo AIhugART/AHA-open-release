@@ -1,0 +1,11 @@
+Using CPython 3.12.11
+Creating virtual environment at: venv
+Activate with: venv\Scripts\activate
+Using Python 3.12.11 environment at: venv
+error: Request failed after 3 retries in 15.0s
+  Caused by: Failed to fetch: `https://pypi.org/simple/huggingface-hub/`
+  Caused by: error sending request for url (https://pypi.org/simple/huggingface-hub/)
+  Caused by: client error (Connect)
+  Caused by: tunnel error: failed to create underlying connection
+  Caused by: tcp connect error
+  Caused by: No connection could be made because the target machine actively refused it. (os error 10061)

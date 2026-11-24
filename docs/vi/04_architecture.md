@@ -1,7 +1,7 @@
 # Kiến trúc AHA open
 
 > Trạng thái: gateway (P2/P3) đã cài đặt và qua bộ kiểm hợp chuẩn với worker giả (🧪, xem `conformance/`);
-> worker Qwen (P4) và giao diện `/ui/` (P5b) xem [05_models.md](05_models.md) §3.
+> worker Qwen (P4) và giao diện `/ui/` (P5b) xem [plan](../../plan/2026-11-22_aha_open_plan.md) §3.
 > Gateway ↔ worker dùng `subprocess.Popen` + thread đọc (không dùng asyncio subprocess).
 
 ## 1. Hai loại tiến trình
@@ -106,10 +106,32 @@ enabled = false              # bật sau khi P0 xác nhận phần cứng
 | `aha-open models install qwen-image-2.1 --accept-license qwen-research` | Tạo venv worker, tải trọng số; không có `--accept-license` thì từ chối |
 | `aha-open models list` | Model, trạng thái, giấy phép |
 | `aha-open serve` | Chạy gateway |
+| `/ui/` ▸ *Download model* | Cùng việc `models install` ngay trên trang web (chỉ hồ sơ local), xem mục 6.1 |
 | `aha-open clients create --name "Laptop An"` | Tạo token thủ công (in một lần) |
 | `aha-open clients approve <code>` / `revoke <id>` | Duyệt ghép cặp / thu hồi |
 | `aha-open tls fingerprint` | In fingerprint chứng chỉ (hồ sơ lan) |
 | `aha-open doctor` | Kiểm GPU, CUDA, dung lượng, cổng, cấu hình |
+
+### 6.1 Cài model từ trang web (`/admin/models/*`)
+
+Dành cho người ngồi tại máy, cùng điều kiện với trang quản lý LoRA (hồ sơ local, người gọi và tên đều là loopback, có token; mọi trường
+hợp khác trả `404`). **Không** thuộc `/v1`: cài model là quyết định của người vận hành, không phải của client.
+
+| Yêu cầu | Trả lời |
+|---|---|
+| `GET /admin/models` | Các model cài được ở đây: `state`, giấy phép cần hiện (`license.key`, `name`, `commercial_use`, `notes`, `url`), `disk_gib`, `blocker` (`{code, message}` hoặc `null`) và trạng thái `install` hiện tại |
+| `POST /admin/models/{id}/install` với `{"accept_license": "<license.key>"}` | `202` + trạng thái. Khoá phải đúng từng chữ; sai là `400` và không có gì chạy |
+| `GET /admin/models/{id}/install` | `{state: idle \| running \| succeeded \| failed \| cancelled, phase, downloaded_bytes, expected_bytes, error, started_at, finished_at}` |
+| `DELETE /admin/models/{id}/install` | `204`, giết cả cây tiến trình; lần sau tải tiếp được. `404` nếu không có gì đang chạy |
+
+Cách làm: gateway chạy **một tiến trình con là chính lệnh `aha-open models install`** (một cách cài duy nhất), đọc đầu ra để biết giai
+đoạn và số byte (tiến trình con, chạy với `AHA_OPEN_PROGRESS=lines`, in `AHAOPEN_PROGRESS <đã tải> <tổng>` lấy từ bộ đếm byte của chính trình tải; không
+đo thư mục trọng số được vì `hf-xet` giữ dữ liệu trong bộ đệm riêng và chỉ ráp từng file ở cuối — quan sát trên lần tải 18 GB thật), và không chờ nó trong request. Khi tiến trình con thoát sạch, gateway đọc lại `config.toml` và
+thay `cfg.models` tại chỗ; trạng thái model tính từ đĩa ở mỗi request nên manifest đổi mà không cần khởi động lại. Tắt gateway thì cài dở bị dừng.
+
+Bị từ chối **trước khi chạy** (`409`), mỗi nguyên nhân một mã và một câu riêng: `unsupported_hardware`, `uv_missing`,
+`download_support_missing`, `not_enough_disk`, `install_running`, `already_installed`. Sau khi chạy: `network_unreachable` hoặc `install_failed`
+(dòng `error:` cuối, đường dẫn thư mục dữ liệu được thay bằng `<data folder>`). `uv` được tìm ở `AHA_OPEN_UV` (trình cài Windows đặt biến này), rồi `PATH`.
 
 ## 7. Bố cục mã dự kiến
 
@@ -122,13 +144,13 @@ workers/
   fake/              worker giả cho test (không torch)
 conformance/         bộ kiểm hợp chuẩn /v1 (pytest, gọi HTTP thật)
 schema/              OpenAPI
-docs/
+docs/  plan/
 ```
 
 ## 8. Bất biến
 
 1. Gateway không import torch (test chạy trong tiến trình con, kiểm `sys.modules`).
-2. Không có route nào ngoài `/v1/*`, tệp tĩnh `/ui/*` (giao diện web — chỉ gọi `/v1` và `/admin/loras`) và `/admin/loras*` (quản lý LoRA: chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`).
+2. Không có route nào ngoài `/v1/*`, tệp tĩnh `/ui/*` (giao diện web — chỉ gọi `/v1` và `/admin/*`), `/admin/loras*` (quản lý LoRA) và `/admin/models*` (cài model, mục 6.1) — `/admin/*` chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`.
 3. Không có pixel/prompt nào ra khỏi máy ngoài phản hồi cho chính client đã gửi.
 4. Kích thước output đúng như `params` đã được chấp nhận; không resize ngầm.
 5. Một job đã `cancelled` không bao giờ có kết quả.

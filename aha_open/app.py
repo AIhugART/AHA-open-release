@@ -25,12 +25,14 @@ from .auth import Auth
 from .catalog import CATALOG, detect_gpus, enabled_models, manifest_model, model_state, validate_job
 from .config import Config
 from .errors import ApiError, busy, forbidden, invalid, not_found
+from .install import INSTALLABLE
 from .loras import ID_RE as LORA_ID_RE
 from .loras import MAX_FILE_BYTES as LORA_MAX_BYTES
 from .loras import LoraError, check_meta
 from .loras import add as add_lora
 from .loras import remove as remove_lora
 from .loras import scan as scan_loras
+from .model_install import InstallManager
 from .scheduler import Scheduler
 from .store import TERMINAL, Store
 from .util import iso, new_id, now, sha256_file
@@ -113,10 +115,11 @@ class GuardMiddleware:
         return await self.app(scope, receive, send_with_headers)
 
 
-def create_app(cfg: Config) -> FastAPI:
+def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
     store = Store(cfg.data_dir)
     auth = Auth(cfg, store)
     scheduler = Scheduler(cfg, store)
+    installer = installer or InstallManager(cfg)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -125,6 +128,7 @@ def create_app(cfg: Config) -> FastAPI:
         auth.sync_local_token()
         scheduler.start()
         yield
+        installer.shutdown()
         scheduler.stop()
         store.close()
 
@@ -248,6 +252,31 @@ def create_app(cfg: Config) -> FastAPI:
         admin_client(request)
         if not remove_lora(cfg, lora_id):
             raise not_found("unknown LoRA")
+        return Response(status_code=204)
+
+    # Install a model from the web page (aha_open/model_install.py). Same guard as the LoRA page: this machine, local profile.
+    @app.get("/admin/models")
+    def admin_list_models(request: Request):
+        admin_client(request)
+        return {"models": installer.models()}
+
+    @app.post("/admin/models/{model_id}/install", status_code=202)
+    def admin_install_model(model_id: str, request: Request, body: dict = BODY):
+        admin_client(request)
+        return installer.start(model_id, body.get("accept_license"))
+
+    @app.get("/admin/models/{model_id}/install")
+    def admin_install_status(model_id: str, request: Request):
+        admin_client(request)
+        if model_id not in INSTALLABLE:
+            raise not_found("this model cannot be installed from here")
+        return installer.status(model_id)
+
+    @app.delete("/admin/models/{model_id}/install", status_code=204)
+    def admin_cancel_install(model_id: str, request: Request):
+        admin_client(request)
+        if not installer.cancel(model_id):
+            raise not_found("no installation is running for this model")
         return Response(status_code=204)
 
     # ------------------------------------------------------------------ uploads

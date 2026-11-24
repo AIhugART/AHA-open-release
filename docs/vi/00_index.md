@@ -3,12 +3,14 @@
 | File | Vai trò | Đọc khi |
 |---|---|---|
 | [01_overview.md](01_overview.md) | Mục tiêu, ranh giới, nguyên tắc | Lần đầu tìm hiểu |
+| [02_aha_studio.md](02_aha_studio.md) | AHA Studio và cách nó kết nối AHA open | Tích hợp với AHA Studio |
 | [03_api_v1.md](03_api_v1.md) | Đặc tả API `/v1` (nguồn sự thật cho tới khi có OpenAPI) | Viết client hoặc một provider `/v1` khác |
 | [04_architecture.md](04_architecture.md) | Cấu trúc bên trong AHA open | Phát triển AHA open |
 | [05_models.md](05_models.md) | Model, phần cứng, giấy phép | Chọn model, triển khai |
 | [06_deployment.md](06_deployment.md) | Ba hồ sơ triển khai | Cài đặt |
 | [07_security.md](07_security.md) | Bảo mật | Mở ra LAN/internet |
 | [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: kiểm thử đầu-cuối và chẩn đoán do agent điều khiển | Kiểm một server thật, gỡ lỗi một job hỏng |
+| [../../plan/2026-11-22_aha_open_plan.md](../../plan/2026-11-22_aha_open_plan.md) | Kế hoạch + RCA | Biết "vì sao" |
 
 ## Quy ước
 

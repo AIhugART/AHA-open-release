@@ -40,7 +40,8 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 12. **`local_client.token`** (the `local` profile) is written only when the profile is `local`, readable only by the current user, and removed
     when the profile changes.
 13. **A model with "hosted service" obligations** (MiniMax H3) is off by default on the `internet` profile.
-14. **`/admin` is for the person at the machine.** Only in the `local` profile, only for a loopback peer that asks for a loopback name, and it still needs a token; any other case answers `404`. A loopback peer alone is not enough: in the `internet` profile the tunnel connects from `127.0.0.1`.
+14. **`/admin` is for the person at the machine** (the LoRA manager and installing a model, which downloads about 18 GB and builds a
+    Python environment, so a page on another site or another machine must never be able to start it). Only in the `local` profile, only for a loopback peer that asks for a loopback name, and it still needs a token; any other case answers `404`. A loopback peer alone is not enough: in the `internet` profile the tunnel connects from `127.0.0.1`.
 
 ## 4. Mandatory negative tests (the conformance suite)
 
@@ -62,6 +63,13 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 | `/admin/loras` without a token / with a wrong token | `401`, nothing written |
 | `/admin/loras` with a foreign `Host` or `Origin` | `403`, nothing written |
 | An admin upload that is not a LoRA, has a bad id or bad details | `400`, nothing left in `loras/` or `tmp/` |
+| `/admin/models` (list, install, status, cancel) in the `internet` profile, even through the tunnel's own path (`Host: 127.0.0.1` or the public name) | `404`, no process started |
+| `/admin/models` without a token / with a wrong token | `401`, no process started |
+| `/admin/models/{id}/install` with a foreign `Host` or `Origin` | `403`, no process started |
+| An install request without the exact licence key (missing, empty, wrong case, `true`) or for a model that cannot be installed | `400` / `404`, no process started |
+| An install with no GPU, a small GPU, no `uv`, no download library or too little disk | `409` with that cause's own code, no process started |
+| Cancelling an install, or stopping the gateway during one | the whole process tree is gone, no result is adopted |
+| An install error shown on the page | never contains the data folder path |
 | Negative search: a sample prompt/token in the logs and state files | 0 matches |
 
 ## 5. The operator's responsibilities

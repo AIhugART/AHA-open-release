@@ -34,8 +34,8 @@ class Running:
         self.thread.join(timeout=30)
 
 
-def start_gateway(cfg: Config) -> Running:
-    server = make_server(cfg)
+def start_gateway(cfg: Config, installer=None) -> Running:
+    server = make_server(cfg, installer=installer)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     deadline = time.monotonic() + 20
@@ -108,9 +108,10 @@ def make_gateway(tmp_path):
         cfg = Config(data_dir=data, listen="127.0.0.1:0", models=list(overrides.pop("models", FAKE_MODELS)))
         cfg.job_timeout_s = 60
         cfg.cancel_grace_s = 2
+        make_installer = overrides.pop("installer", None)  # a callable taking cfg: how a test swaps the install command
         for key, value in overrides.items():
             setattr(cfg, key, value)
-        running = start_gateway(cfg)
+        running = start_gateway(cfg, make_installer(cfg) if make_installer else None)
         started.append(running)
         token_file = cfg.local_token_path
         running.tokens["local"] = token_file.read_text(encoding="utf-8").strip() if token_file.exists() else None

@@ -17,6 +17,17 @@ libraries comes from PyTorch's distribution model and was not re-verified here).
 
 Model weights are not part of this repository and are not listed here; see `docs/05_models.md` for each model's license.
 
+## Shipped inside the Windows installer (`windows_installer/`)
+
+| Component | Version | License |
+|---|---|---|
+| uv (`uv.exe`, used to build the Python environments) | 0.11.21 | Apache-2.0 **or** MIT — from its README: *"uv is licensed under either of Apache License, Version 2.0 … MIT license"*. Both texts, taken from the `0.11.21` tag of `astral-sh/uv`, are installed under `<app>\licenses\` |
+
+The installed gateway environment is the table below **plus** the `download` extra (`huggingface-hub` and what it needs: `hf-xet`, `httpx`,
+`tqdm`, `pyyaml`, `packaging`, `filelock`, `fsspec`, `truststore`, …); every version is pinned to `uv.lock` when the installer is built.
+Those packages are covered by the worker table's licenses where they appear there; the versions in the tables are those of 2026-11-23 and
+`uv.lock` has moved on since (for example `huggingface-hub`), so the lock file, not this table, is the authority for versions.
+
 ## Gateway (`aha-open`)
 
 | Package | Version | License (as declared in its metadata) |

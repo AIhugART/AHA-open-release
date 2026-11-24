@@ -4,7 +4,7 @@
 > **Trạng thái: đã làm phần lớn.** ✅ Đã chạy thật với tiến trình `aha-open serve` thật và giao thức MCP thật: công cụ quan sát,
 > sandbox dùng một lần, job, kịch bản, khẳng định, sổ chạy, chẩn đoán job hỏng, đích `live`, sandbox model thật (các cổng đã
 > kiểm), và model Qwen INT8 thật đã chạy qua một kịch bản hai lần cho kết quả giống hệt từng byte (xem playbook).
-> Mã: [`aha_open_mcp/`](../../aha_open_mcp/).
+> Mã: [`aha_open_mcp/`](../../aha_open_mcp/). Lý do từng lựa chọn nằm trong kế hoạch nội bộ của dự án.
 
 ## 1. Nó là gì
 

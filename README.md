@@ -4,12 +4,26 @@
 standard HTTP API (`/v1`). A client sends a request to generate or edit an image and gets the result back; AHA Studio
 (a creative-suite client) is the first client, and the bundled web page (`/ui/`) is another.
 
-> **Status (2026-11-23): no release yet (`0.1.0.dev`).** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
+> **Status (2026-11-24): pre-release `0.1.0.dev1`, with a Windows installer.** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
 > (INT8 build, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
 > generation, editing, transparent images, cancelling and LoRA through the gateway, installed from a built wheel in a clean
 > environment. The web page (`/ui/`) was also driven in a real browser (connect, generate, result image, download). **Not tried yet:** the `lan` profile from a second machine, the `internet` profile
 > (needs a real Cloudflare account), and video (MiniMax H3 is deferred). Per-item evidence levels are in
 > [docs/05_models.md](docs/05_models.md) §3.
+
+## Quick start on Windows (installer)
+
+1. From the [Releases page](https://github.com/AIhugART/AHA-open-release/releases) download `AHA-Open-Setup-<version>.exe` and `SHA256SUMS`
+   (it is a pre-release for now) and compare the file's SHA-256 with the one in `SHA256SUMS`. The installer is **not code-signed**, so
+   Windows SmartScreen may warn the first time.
+2. Run it (about 16 MiB, no administrator rights; it needs the internet the first time, to fetch Python). Then Start menu ▸ **AHA open**: the
+   gateway starts in the background and the web page opens.
+3. On the page, tick the licence box and press **Download model** (Qwen-Image-2.1 INT8, about 18 GB; research and evaluation use only —
+   read the licence it shows). You need an NVIDIA GPU with about 10 GiB of VRAM or more and about 25 GB of free disk.
+
+Tried for real on one machine (RTX 3090 Ti, Windows 11): installed, model downloaded through the page, the reference picture generated
+with the same bytes as the earlier measurement, uninstalled. **Not tried yet:** the interactive wizard, the SmartScreen prompt, a machine
+with no Python at all. macOS is not supported in v1. Details and how to build the installer: [docs/06_deployment.md](docs/06_deployment.md) §0.1.
 
 ## Quick start (from source, needs [`uv`](https://docs.astral.sh/uv/) and an NVIDIA GPU)
 

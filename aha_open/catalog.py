@@ -235,6 +235,24 @@ def weights_dir(cfg: Config, mc: ModelConfig) -> Path | None:
 
 # ---------------------------------------------------------------------------------------------- state
 
+# Where huggingface_hub keeps the bookkeeping of a download into a folder: a file still arriving is `<name>.incomplete` here.
+HF_DOWNLOAD_STATE = Path(".cache") / "huggingface" / "download"
+
+
+def download_incomplete(wdir: Path) -> bool:
+    """True when a download into `wdir` was started and not finished. `model_index.json` arrives among the first files, so its
+    presence says nothing about the big ones: a download cut off after it left the model 'ready' on a real run (2026-11-24).
+
+    `install.json` is written only AFTER the download returned successfully, so it is the proof of "finished": `.incomplete` files can
+    outlive a successful resume (an earlier cut-off attempt leaves its own, named after the etag, and nothing removes it)."""
+    if (wdir / "install.json").exists():
+        return False
+    state = wdir / HF_DOWNLOAD_STATE
+    try:
+        return state.is_dir() and any(state.rglob("*.incomplete"))
+    except OSError:
+        return False
+
 
 def model_state(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool = False) -> tuple[str, str | None]:
     """(state, detail) for one configured model on this machine."""
@@ -251,6 +269,8 @@ def model_state(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool = F
         wdir = weights_dir(cfg, mc)
         if wdir is not None and not (wdir / "model_index.json").exists():
             return "not_installed", f"weights not found at {wdir}"
+        if wdir is not None and download_incomplete(wdir):
+            return "not_installed", "the download did not finish; start it again and it continues where it stopped"
     need = spec.min_vram_mib.get(mc.variant or next(iter(spec.min_vram_mib), ""), 0)
     if need:
         gpus = {g["index"]: g for g in detect_gpus()}

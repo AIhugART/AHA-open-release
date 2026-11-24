@@ -1,4 +1,4 @@
-"""What an error code MEANS and what to DO about it.
+"""What an error code MEANS and what to DO about it (plan D10).
 
 The table is a second copy of knowledge that lives in the gateway, so it is guarded in BOTH directions by tests: every code the
 gateway can emit (read from its source, not copied) and every code the specification lists must have an entry here, and an

@@ -9,15 +9,16 @@ import uvicorn
 from . import runtime
 from .app import create_app
 from .config import Config, validate_for_serve
+from .model_install import InstallManager
 
 
-def make_server(cfg: Config, log_level: str = "warning") -> uvicorn.Server:
+def make_server(cfg: Config, log_level: str = "warning", installer: InstallManager | None = None) -> uvicorn.Server:
     validate_for_serve(cfg)
     kwargs: dict = {}
     if cfg.profile == "lan":
         kwargs.update(ssl_certfile=str(cfg.tls_cert_path), ssl_keyfile=str(cfg.tls_key_path))
     config = uvicorn.Config(
-        create_app(cfg), host=cfg.listen_host or "127.0.0.1", port=cfg.listen_port, log_level=log_level,
+        create_app(cfg, installer), host=cfg.listen_host or "127.0.0.1", port=cfg.listen_port, log_level=log_level,
         server_header=False, date_header=False, **kwargs,
     )
     return uvicorn.Server(config)

@@ -108,9 +108,12 @@ enabled = false              # enable after the hardware has been measured
 | `aha-open models install qwen-image-2.1 --accept-license qwen-research` | Create the worker venv from its lock file, download the weights; refuses without `--accept-license` |
 | `aha-open models list` | Models, state, license |
 | `aha-open serve` | Run the gateway |
+| `aha-open start` | Local profile: start the gateway in the background if it is not running (it asks the port first, so a second click never starts a second one), wait for `/v1/health`, open the page. A failure says why from the gateway's own output (`logs/start.log`); `--gui` also shows it in a box, for the Start-menu shortcut that has no console |
+| `aha-open stop` | Stop the gateway `start` started, and what it started (a download in progress, a worker). It uses the pid the gateway wrote itself (`run/gateway.json`), waits until the process is really gone, and leaves a foreign program on the port alone |
 | `aha-open open` | Open the bundled web page in a browser |
 | `aha-open loras add FILE` · `list` · `remove ID` | Manage the LoRA files the server offers |
 | `/ui/` ▸ *Manage LoRA files* | The same add/remove from the web page, on the machine that runs AHA open (local profile only); **Refresh** re-reads the list |
+| `/ui/` ▸ *Download model* | The same `models install` from the web page (local profile only), see section 6.1 |
 | `aha-open clients create --name "Laptop An"` | Create a token by hand (printed once) |
 | `aha-open clients approve <code>` / `revoke <id>` | Approve a pairing / revoke a client |
 | `aha-open tls fingerprint` | Print the certificate fingerprint (lan profile) |
@@ -118,17 +121,46 @@ enabled = false              # enable after the hardware has been measured
 | `aha-open tunnel` | Help with the Cloudflare Tunnel setup (internet profile) |
 | `aha-open doctor` | Check the GPU, CUDA, disk space, port and configuration |
 
+### 6.1 Installing a model from the web page (`/admin/models/*`)
+
+For the person at the machine, on the same terms as the LoRA manager (local profile, loopback peer and name, token; anything else answers `404`).
+It is **not** part of `/v1`: installing a model is the operator's decision, not a client's, so the neutral API does not carry it.
+
+| Request | Answer |
+|---|---|
+| `GET /admin/models` | The models that can be installed here: `state`, the licence to show (`license.key`, `name`, `commercial_use`, `notes`, `url`), `disk_gib`, a `blocker` (`{code, message}` or `null`) and the current `install` status |
+| `POST /admin/models/{id}/install` with `{"accept_license": "<license.key>"}` | `202` + the status. The key must be the exact one listed; anything else is `400` and nothing starts |
+| `GET /admin/models/{id}/install` | `{state: idle \| running \| succeeded \| failed \| cancelled, phase: preparing \| downloading \| creating_environment \| finishing, downloaded_bytes, expected_bytes, error: {code, message} \| null, started_at, finished_at}` |
+| `DELETE /admin/models/{id}/install` | `204` and the whole process tree is killed; a download resumes next time. `404` when nothing is running |
+
+How it works: the gateway starts a **child process that runs the same `aha-open models install`** the command line runs (one way to install,
+not two), reads its output for the phase and for the bytes (the child, started with `AHA_OPEN_PROGRESS=lines`, prints `AHAOPEN_PROGRESS <done> <total>` from the
+downloader's own byte counter; the weights folder cannot be measured instead, because `hf-xet` keeps what it downloads in its own cache and
+assembles each file only at the end — observed on a real 18 GB download), and never waits for it inside a request. When the child
+exits cleanly the gateway re-reads `config.toml` and replaces `cfg.models` in place; a model's state is computed from the disk on every request,
+so the manifest changes with no restart. Stopping the gateway kills a running install.
+
+Refused **before anything starts**, each with its own code and sentence (`409`): `unsupported_hardware` (no NVIDIA GPU, or less than the measured
+minimum), `uv_missing`, `download_support_missing` (no `huggingface-hub`), `not_enough_disk`, `install_running` (one install at a time),
+`already_installed`. A download that was cut off (a cancel, a restart, a power cut) is **not** `ready`: `model_index.json` is among the first
+files to arrive, so the state also looks for files still marked `.incomplete` by `huggingface_hub` — unless `install.json`, written only after a
+download returned successfully, says it finished (an earlier cut-off attempt leaves a stray `.incomplete` that nothing removes) — and pressing *Download* again continues
+(`install_model` downloads again whenever the download is unfinished — it used to skip the download as soon as `model_index.json` existed).
+After it started, a failure is `network_unreachable` (the output shows the network could not be reached) or `install_failed`
+(the last `error:` line, with the data folder replaced by `<data folder>`). `uv` is looked up in `AHA_OPEN_UV` (the Windows installer sets it), then `PATH`.
+
 ## 7. Code layout
 
 ```text
 aha_open/            gateway (never imports torch — a test enforces it)
-  app.py  scheduler.py  store.py  auth.py  catalog.py  install.py  loras.py  cli.py ...
+  app.py  scheduler.py  store.py  auth.py  catalog.py  install.py  model_install.py  launcher.py  loras.py  cli.py ...
   workers/           worker sources (mapped from the top-level workers/ folder when the wheel is built)
   ui/                the bundled web page
 workers/
   qwen_image/        its own pyproject + uv.lock, an adapter calling diffusers
   minimax_h3/        (deferred)
   fake/              a fake worker for tests (no torch)
+windows_installer/   Inno Setup script + build_installer.py (docs/06_deployment.md section 0.1)
 conformance/         the /v1 conformance suite (pytest, real HTTP calls)
 schema/              OpenAPI
 docs/
@@ -137,7 +169,7 @@ docs/
 ## 8. Invariants
 
 1. The gateway does not import torch (a test runs in a child process and checks `sys.modules`).
-2. There is no route besides `/v1/*`, the static files `/ui/*` (the web page — it only calls `/v1` and `/admin/loras`) and `/admin/loras*` (the LoRA manager: only in the `local` profile, only for a loopback peer asking for a loopback name, and it still needs a token; every other case answers `404`).
+2. There is no route besides `/v1/*`, the static files `/ui/*` (the web page — it only calls `/v1` and `/admin/*`), `/admin/loras*` (the LoRA manager) and `/admin/models*` (installing a model, section 6.1) — `/admin/*` is available only in the `local` profile, only for a loopback peer asking for a loopback name, and it still needs a token; every other case answers `404`.
 3. No pixel or prompt leaves the machine except in the response to the client that sent it.
 4. The output size is exactly the accepted `params`; there is no silent resize.
 5. A job that has been `cancelled` never has a result.

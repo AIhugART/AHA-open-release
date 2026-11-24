@@ -39,7 +39,7 @@
 12. **`local_client.token`** (hồ sơ `local`) chỉ ghi khi hồ sơ là `local`, quyền đọc chỉ cho người dùng hiện tại; xoá
     khi đổi sang hồ sơ khác.
 13. **Model có nghĩa vụ "hosted service"** (MiniMax H3) tắt mặc định ở hồ sơ `internet`.
-14. **`/admin` dành cho người ngồi tại máy.** Chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`. Chỉ cần người gọi là loopback là chưa đủ: ở hồ sơ `internet`, tunnel kết nối từ `127.0.0.1`.
+14. **`/admin` dành cho người ngồi tại máy** (quản lý LoRA và cài model — tải khoảng 18 GB và dựng môi trường Python, nên một trang ở site khác hay máy khác không bao giờ được phép bắt đầu việc đó). Chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`. Chỉ cần người gọi là loopback là chưa đủ: ở hồ sơ `internet`, tunnel kết nối từ `127.0.0.1`.
 
 ## 4. Test âm tính bắt buộc (bộ kiểm hợp chuẩn)
 
@@ -60,6 +60,13 @@
 | `/admin/loras` ở hồ sơ `lan`/`internet`, kể cả có token hợp lệ và `Host: 127.0.0.1` | `404`, không ghi gì |
 | `/admin/loras` không token / sai token | `401`, không ghi gì |
 | `/admin/loras` với `Host` hoặc `Origin` lạ | `403`, không ghi gì |
+| `/admin/models` (liệt kê, cài, trạng thái, huỷ) ở hồ sơ `internet`, kể cả qua đường của chính tunnel (`Host: 127.0.0.1` hay tên công khai) | `404`, không tiến trình nào chạy |
+| `/admin/models` không token / sai token | `401`, không tiến trình nào chạy |
+| `/admin/models/{id}/install` với `Host` hoặc `Origin` lạ | `403`, không tiến trình nào chạy |
+| Yêu cầu cài không có đúng khoá giấy phép (thiếu, rỗng, sai hoa/thường, `true`) hoặc model không cài được | `400` / `404`, không tiến trình nào chạy |
+| Cài khi không có GPU, GPU nhỏ, thiếu `uv`, thiếu thư viện tải hoặc thiếu ổ đĩa | `409` kèm mã riêng của nguyên nhân, không tiến trình nào chạy |
+| Huỷ cài, hoặc tắt gateway khi đang cài | cả cây tiến trình biến mất, không nhận kết quả nào |
+| Lỗi cài hiện trên trang | không bao giờ chứa đường dẫn thư mục dữ liệu |
 | Tải lên qua trang quản trị một file không phải LoRA, id sai hoặc thông tin sai | `400`, không để lại gì trong `loras/` hay `tmp/` |
 | Tìm kiếm phủ định: prompt/token mẫu trong log và file trạng thái | 0 lần khớp |
 

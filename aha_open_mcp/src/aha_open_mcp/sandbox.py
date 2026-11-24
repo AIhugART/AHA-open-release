@@ -1,4 +1,4 @@
-"""A throwaway gateway. It is a REAL `aha-open serve` child process so the code under test is the production code
+"""A throwaway gateway (plan D3). It is a REAL `aha-open serve` child process so the code under test is the production code
 path; it must not inherit this process's stdio (stdout is the MCP protocol channel, and a library that prints to an
 inherited stdin/stdout is how the Qwen worker once hung on Windows)."""
 

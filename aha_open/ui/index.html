@@ -35,6 +35,12 @@
     </div>
   </section>
 
+  <section id="setup" class="panel composer" aria-labelledby="setup-title" hidden>
+    <div class="panel-heading"><div class="heading-group"><h2 id="setup-title">Download a Model</h2></div><span class="eyebrow">Setup</span></div>
+    <p class="note">The first time, the model has to be downloaded to this machine. It stays here; nothing is sent anywhere.</p>
+    <div id="setuplist"></div>
+  </section>
+
   <div class="workspace">
   <section class="panel welcome" aria-labelledby="welcome-title">
     <h2 id="welcome-title">Make Room for Your Ideas</h2>
@@ -148,10 +154,11 @@ async function connect() {
     say($("status"), why || ("Could not reach the server: " + e.message), "err"); $("make").hidden = true; return;
   }
   say($("status"), `Connected to ${manifest.provider.name} ${manifest.provider.version} (profile ${manifest.profile}).`);
-  $("make").hidden = false;
+  $("make").hidden = manifest.models.length === 0; // a fresh install has no model yet: the download panel below comes first
   fillModels();
   onModel();
   loadAdmin();
+  loadSetup();
 }
 
 function fillModels() {
@@ -224,6 +231,97 @@ $("loraadd").addEventListener("click", addLora);
 $("lorarefresh").addEventListener("click", async () => {
   try { await refreshManifest(); await loadAdmin(); } catch (e) { say($("loranote"), "Could not read the list: " + e.message, "err"); }
 });
+
+// ---- Download a model: the server answers 404 unless this page runs on the machine itself (local profile), then the panel stays hidden.
+const PHASE_TEXT = {
+  preparing: "Checking your machine...",
+  downloading: "Downloading the model...",
+  creating_environment: "Setting up the image engine. This installs PyTorch and takes several minutes...",
+  finishing: "Finishing...",
+};
+const gb = n => (n / 2 ** 30).toFixed(1);
+const COMMERCIAL = { not_allowed: "Research and evaluation only. Not for commercial use.", allowed_with_conditions: "Commercial use with conditions.", allowed: "Commercial use allowed." };
+const installTimers = {}, refreshedFor = {};
+
+async function loadSetup() {
+  let res;
+  try { res = await (await api("/admin/models")).json(); } catch (e) { $("setup").hidden = true; return; }
+  const todo = res.models.filter(x => x.state !== "ready");
+  $("setup").hidden = todo.length === 0;
+  const list = $("setuplist"); list.replaceChildren();
+  for (const mod of todo) list.append(renderSetup(mod));
+}
+
+function renderSetup(mod) {
+  const box = document.createElement("div"); box.className = "setup-model";
+  const title = document.createElement("strong"); title.textContent = `${mod.display_name} (about ${mod.disk_gib} GB)`;
+  const lic = mod.license, cu = lic.commercial_use;
+  const facts = document.createElement("div");
+  facts.append(badge(lic.name, ""), badge(cu === "allowed" ? "commercial use allowed" : "commercial use: " + cu, cu === "allowed" ? "ok" : cu === "not_allowed" ? "bad" : "warn"));
+  const terms = document.createElement("p"); terms.className = "note";
+  terms.textContent = (lic.notes || COMMERCIAL[cu] || "") + " "; // the server's own words first; ours only if it sent none
+  if (lic.url) { const a = document.createElement("a"); a.href = lic.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = "Read the full licence"; terms.append(a); }
+  const agree = document.createElement("label");
+  const tick = document.createElement("input"); tick.type = "checkbox";
+  agree.append(tick, " I have read the licence and I accept it.");
+  const actions = document.createElement("div"); actions.className = "generate-actions";
+  const go = document.createElement("button"); go.type = "button"; go.textContent = "Download model";
+  const stop = document.createElement("button"); stop.type = "button"; stop.className = "secondary"; stop.textContent = "Cancel"; stop.hidden = true;
+  actions.append(go, stop);
+  const wrap = document.createElement("div"); wrap.className = "bar"; wrap.hidden = true;
+  const fill = document.createElement("i"); wrap.append(fill);
+  const msg = document.createElement("div"); msg.className = "note"; msg.setAttribute("role", "status");
+  box.append(title, facts, terms, agree, actions, wrap, msg);
+
+  const ui = { go, stop, tick, wrap, fill, msg };
+  const sync = () => { go.disabled = !tick.checked || !!mod.blocker || mod.install.state === "running"; };
+  tick.addEventListener("change", sync);
+  go.addEventListener("click", async () => {
+    go.disabled = true; say(msg, "Starting...");
+    try { mod.install = await (await api(`/admin/models/${encodeURIComponent(mod.id)}/install`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accept_license: lic.key }) })).json(); }
+    catch (e) { say(msg, e.message, "err"); sync(); return; }
+    showInstall(mod, ui);
+  });
+  stop.addEventListener("click", async () => {
+    stop.disabled = true;
+    try { await api(`/admin/models/${encodeURIComponent(mod.id)}/install`, { method: "DELETE" }); } catch (e) { say(msg, e.message, "err"); }
+    stop.disabled = false;
+  });
+  if (mod.blocker) say(msg, mod.blocker.message, "err");
+  sync();
+  if (mod.install.state === "running") { tick.checked = true; showInstall(mod, ui); } else showInstall(mod, ui);
+  return box;
+}
+
+// One place that turns a status into what the person sees, and keeps polling while it runs.
+function showInstall(mod, ui) {
+  const s = mod.install, running = s.state === "running";
+  ui.go.hidden = running; ui.stop.hidden = !running; ui.wrap.hidden = !running; ui.tick.disabled = running;
+  clearTimeout(installTimers[mod.id]);
+  if (running) {
+    const frac = s.phase === "downloading" && s.expected_bytes ? Math.min(1, s.downloaded_bytes / s.expected_bytes) : null;
+    ui.fill.style.width = frac === null ? "100%" : Math.round(frac * 100) + "%";
+    ui.fill.className = frac === null ? "indeterminate" : "";
+    const bytes = s.phase === "downloading" ? ` ${gb(s.downloaded_bytes)} of about ${gb(s.expected_bytes)} GB.` : "";
+    say(ui.msg, (PHASE_TEXT[s.phase] || "Working...") + bytes);
+    installTimers[mod.id] = setTimeout(async () => {
+      try { mod.install = await (await api(`/admin/models/${encodeURIComponent(mod.id)}/install`)).json(); }
+      catch (e) { say(ui.msg, "Lost contact with the server: " + e.message, "err"); installTimers[mod.id] = setTimeout(() => showInstall(mod, ui), 3000); return; }
+      showInstall(mod, ui);
+    }, 1000);
+    return;
+  }
+  ui.go.disabled = !ui.tick.checked || !!mod.blocker;
+  if (s.state === "succeeded") {
+    if (refreshedFor[mod.id] === s.finished_at) { // second look, after loadSetup() drew this panel again with the server's own state
+      say(ui.msg, `The download finished, but the model is not ready yet: ${mod.state_detail || mod.state}.`, "err"); return;
+    }
+    refreshedFor[mod.id] = s.finished_at;
+    say(ui.msg, "Finished. Checking the model...");
+    refreshManifest().then(() => { $("make").hidden = manifest.models.length === 0; const now = manifest.models.find(x => x.id === mod.id); if (now && now.state === "ready") say($("status"), `${mod.display_name} is installed. You can create images now.`, "ok"); return loadSetup(); }).catch(e => say(ui.msg, "Installed, but the list could not be refreshed: " + e.message, "err"));
+  } else if (s.state === "failed") { say(ui.msg, s.error ? s.error.message : "The download failed.", "err"); ui.go.textContent = "Try again"; }
+  else if (s.state === "cancelled") { say(ui.msg, "Cancelled. What was downloaded is kept, so the next try continues from there."); ui.go.textContent = "Download model"; }
+}
 
 function badge(text, cls) { const s = document.createElement("span"); s.className = "badge " + cls; s.textContent = text; return s; }
 function currentModel() { return manifest.models.find(x => x.id === $("model").value); }

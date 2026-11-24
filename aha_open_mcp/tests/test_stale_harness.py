@@ -1,4 +1,4 @@
-"""`check_harness` must notice that the tool's own files changed after the tool started (the "code on disk is not the
+"""`check_harness` must notice that the tool's own files changed after the tool started (plan D5, the "code on disk is not the
 code running" class that cost the reference harness five investigations). The package is COPIED so no real file is edited."""
 
 from __future__ import annotations

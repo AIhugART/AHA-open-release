@@ -1,4 +1,4 @@
-"""Auto-debug of ONE job: the cause and the action, the log lines of that job's time window with this tool's own poll
+"""Auto-debug of ONE job (plan D10): the cause and the action, the log lines of that job's time window with this tool's own poll
 noise removed, and the last stage the worker reported. Read only: it never writes to the logs it reads."""
 
 from __future__ import annotations

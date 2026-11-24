@@ -17,6 +17,24 @@ aha-open models install qwen-image-2.1 --accept-license qwen-research           
 aha-open doctor
 ```
 
+## 0.1 Trình cài Windows (Windows 10/11, 64-bit)
+
+`AHA-Open-Setup-<phiên bản>.exe` là trình cài nhỏ (khoảng 16 MiB: `uv` và wheel của AHA open; **không** có PyTorch, **không** có trọng số
+model). Cài theo người dùng hiện tại (không cần quyền admin) vào `%LOCALAPPDATA%\Programs\AHA open`, dựng môi trường Python cho gateway bằng
+`uv` (lần đầu phải tải Python nên cần internet), ghim mọi phụ thuộc theo `uv.lock`, và ghi cấu hình `local` mặc định. Cài đặt, model và ảnh
+nằm riêng ở `%LOCALAPPDATA%\AHA-open`.
+
+- **Cài:** chạy file `.exe`. Chưa ký số nên Windows SmartScreen có thể cảnh báo lần đầu; so SHA-256 của file với `SHA256SUMS` trên trang release.
+- **Chạy lần đầu:** Start menu ▸ *AHA open*. Gateway chạy nền (không có cửa sổ console) rồi mở trang web.
+- **Model:** trình cài **không** tải model. Trang web hiện *Download a Model* kèm giấy phép; tick ô đồng ý rồi bấm nút (khoảng 18 GB, thêm
+  môi trường Python riêng của model). Xem [05_models.md](05_models.md) và `docs/04_architecture.md` mục 6.1.
+- **Dừng:** Start menu ▸ *Stop AHA open* (dừng luôn lượt tải đang chạy).
+- **Gỡ cài:** Settings ▸ Apps. Dừng gateway trước, **giữ model và cài đặt của bạn** trừ khi bạn trả lời *Yes* cho câu hỏi xoá dữ liệu.
+
+Cài lỗi sẽ nói rõ vì sao (không có internet / hết ổ đĩa / Windows không cho ghi) và không để lại gì (thoát mã khác 0, không có mục trong
+*Add or remove programs*). Chưa hỗ trợ macOS ở v1. Mức bằng chứng: ✅ cài và gỡ thật vào thư mục tạm, gateway lên và trả lời, cài đè nâng cấp,
+hai lỗi mạng thật; ⬜ chưa thấy hộp thoại cài tương tác, cảnh báo SmartScreen, máy chưa có Python, và việc tải model thật qua trang; chưa có biểu tượng.
+
 ## 1. Hồ sơ `local` — cùng máy với AHA Studio
 
 ```bash

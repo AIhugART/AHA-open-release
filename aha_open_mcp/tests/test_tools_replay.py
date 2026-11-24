@@ -1,4 +1,4 @@
-"""Replay of every M2 tool body against a real gateway (no mock, so the tool cannot drift from the contract)."""
+"""Replay of every M2 tool body against a real gateway (plan D6: no mock, so the tool cannot drift from the contract)."""
 
 from __future__ import annotations
 
