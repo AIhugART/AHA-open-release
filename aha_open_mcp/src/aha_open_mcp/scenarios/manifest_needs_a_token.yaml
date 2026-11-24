@@ -1,0 +1,13 @@
+id: manifest_needs_a_token
+title: "The manifest is refused without a token"
+covers: "conformance/test_v1_core.py::test_health_needs_no_token_and_manifest_does"
+target: sandbox
+requires_worker: fake
+preconditions: []
+side_effects: [reads_only]
+steps:
+  - tool: probe_v1
+    args: {path: /v1/manifest, with_token: false}
+assert:
+  - {path: probe.http_status, op: eq, value: 401}
+  - {path: probe.error.code, op: eq, value: unauthorized}

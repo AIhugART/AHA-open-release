@@ -35,3 +35,5 @@ workers/*/.venv/
 # Measurement outputs (images, logs) - the numbers live in docs/05_models.md
 workers/*/p0_out*/
 .playwright-mcp/
+aha_open_mcp/runs/
+aha_open_mcp/.venv/

@@ -6,6 +6,7 @@ import logging
 
 import uvicorn
 
+from . import runtime
 from .app import create_app
 from .config import Config, validate_for_serve
 
@@ -24,4 +25,11 @@ def make_server(cfg: Config, log_level: str = "warning") -> uvicorn.Server:
 
 def serve(cfg: Config) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    make_server(cfg, "info").run()
+    server = make_server(cfg, "info")
+    handler = runtime.install_gateway_log(cfg)
+    runtime.write_run_record(cfg)
+    try:
+        server.run()
+    finally:
+        runtime.remove_run_record(cfg)
+        runtime.remove_gateway_log(handler)

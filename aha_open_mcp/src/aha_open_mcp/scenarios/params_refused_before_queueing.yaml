@@ -1,0 +1,15 @@
+id: params_refused_before_queueing
+title: "A size the model does not offer is refused at submit time, not silently resized"
+covers: "conformance/test_v1_core.py::test_params_outside_capabilities_are_refused_before_queueing"
+target: sandbox
+requires_worker: fake
+preconditions: []
+side_effects: [creates_job]
+vars: {prompt: "anything"}
+steps:
+  - tool: run_job
+    args: {body: {task: image.generate, model: example-image, prompt: "${prompt}", params: {seed: 1, width: 300, height: 300}}}
+assert:
+  - {path: submit.http_status, op: eq, value: 400}
+  - {path: submit.error.code, op: eq, value: invalid_request}
+  - {path: job_id, op: absent}

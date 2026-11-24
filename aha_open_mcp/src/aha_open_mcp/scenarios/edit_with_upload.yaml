@@ -1,0 +1,20 @@
+id: edit_with_upload
+title: "An uploaded image feeds an edit job and the result is a valid image of the size the job reports"
+covers: "conformance/test_v1_uploads.py::test_multipart_upload_feeds_an_edit_job"
+target: sandbox
+requires_worker: fake
+preconditions: []
+side_effects: [uploads_file, creates_job]
+vars: {prompt: "make it blue", seed: 2}
+steps:
+  - tool: run_upload
+    args: {synthetic_png: [64, 64]}
+  - tool: run_job
+    args: {body: {task: image.edit, model: example-image, prompt: "${prompt}", inputs: [{role: source, upload_id: "${upload_id}"}], params: {seed: "${seed}"}}}
+  - tool: wait_job
+  - tool: check_result_image
+assert:
+  - {path: upload_id, op: exists}
+  - {path: job.status, op: eq, value: succeeded}
+  - {path: image.ihdr_matches, op: eq, value: true}
+  - {path: image.sha256_matches, op: eq, value: true}

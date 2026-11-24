@@ -1,0 +1,23 @@
+id: real_generate_1k_seed_42
+title: "The real Qwen INT8 model draws a 1:1 image with a fixed seed; the downloaded pixels match the job's metadata (the sha256 is recorded, so a later run shows any change)"
+covers: "docs/05_models.md#3-p0-measurements"
+target: sandbox
+requires_worker: qwen_image
+preconditions: [real_model_installed]
+side_effects: [creates_job, uses_gpu, loads_model]
+vars: {prompt: "a lighthouse on a cliff at sunset, oil painting", seed: 42}
+steps:
+  - tool: run_job
+    args: {body: {task: image.generate, model: qwen-image-2.1, prompt: "${prompt}", params: {seed: "${seed}", aspect_ratio: "1:1"}}}
+  - tool: wait_job
+    args: {timeout_s: 600}
+  - tool: check_result_image
+assert:
+  - {path: submit.http_status, op: eq, value: 202}
+  - {path: job.status, op: eq, value: succeeded}
+  - {path: "job.results[0].width", op: ge, value: 1000}
+  - {path: "job.results[0].width", op: le, value: 1100}
+  - {path: image.signature_ok, op: eq, value: true}
+  - {path: image.ihdr_matches, op: eq, value: true}
+  - {path: image.sha256_matches, op: eq, value: true}
+  - {path: image.bytes_match, op: eq, value: true}

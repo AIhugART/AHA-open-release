@@ -1,0 +1,22 @@
+id: generate_exact_size
+title: "An image job ends with exactly the size asked for, and the downloaded pixels match the job's metadata"
+covers: "conformance/test_v1_core.py::test_image_job_end_to_end_with_exact_size_and_range"
+target: sandbox
+requires_worker: fake
+preconditions: []
+side_effects: [creates_job]
+vars: {prompt: "a red square", seed: 1}
+steps:
+  - tool: run_job
+    args: {body: {task: image.generate, model: example-image, prompt: "${prompt}", params: {seed: "${seed}", width: 320, height: 180}}}
+  - tool: wait_job
+  - tool: check_result_image
+assert:
+  - {path: submit.http_status, op: eq, value: 202}
+  - {path: job.status, op: eq, value: succeeded}
+  - {path: "job.results[0].width", op: eq, value: 320}
+  - {path: "job.results[0].height", op: eq, value: 180}
+  - {path: image.signature_ok, op: eq, value: true}
+  - {path: image.ihdr_matches, op: eq, value: true}
+  - {path: image.sha256_matches, op: eq, value: true}
+  - {path: image.bytes_match, op: eq, value: true}

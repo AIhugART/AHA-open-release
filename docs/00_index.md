@@ -8,6 +8,7 @@
 | [05_models.md](05_models.md) | Models, hardware, licenses, measurements | Choosing a model, deploying |
 | [06_deployment.md](06_deployment.md) | The three deployment profiles | Installing |
 | [07_security.md](07_security.md) | Threat model and security rules | Opening AHA open to a LAN or the internet |
+| [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: agent-driven end-to-end tests and diagnosis (design, not implemented yet) | Testing a real server, debugging a failed job |
 | [../SECURITY.md](../SECURITY.md) | How to report a vulnerability | You found a security problem |
 | [../THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md) | Licenses of the packages AHA open installs | Checking compliance |
 

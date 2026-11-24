@@ -71,6 +71,8 @@ after the job was `cancelled` is dropped.
   loras/                <id>.safetensors [+ <id>.json] put there by the operator (`aha-open loras add`); safetensors only, id a-z0-9_-
   tmp/                  a LoRA the web page is receiving; renamed into loras/ or deleted at once, never kept
   tls/                  self-signed certificate for the lan profile
+  logs/                 gateway.log (rotated by size; the same lines as the terminal) and worker-<name>.log; never a token or a prompt
+  run/gateway.json      written by `aha-open serve`: pid, started_at, version, source_digest (removed on a clean exit; a crash leaves it, naming a dead pid)
 ```
 
 A token is stored only as a hash; its value appears exactly once, when it is created/approved.

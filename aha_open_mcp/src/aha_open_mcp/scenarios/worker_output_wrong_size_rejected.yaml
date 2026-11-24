@@ -1,0 +1,15 @@
+id: worker_output_wrong_size_rejected
+title: "A worker that returns an image of another size fails the job instead of being resized"
+covers: "conformance/test_v1_core.py::test_worker_output_of_the_wrong_size_is_rejected"
+target: sandbox
+requires_worker: fake
+preconditions: [fake_worker_markers]
+side_effects: [creates_job]
+vars: {prompt: "x __wrongsize"}
+steps:
+  - tool: run_job
+    args: {body: {task: image.generate, model: example-image, prompt: "${prompt}", params: {seed: 1, width: 256, height: 256}}}
+  - tool: wait_job
+assert:
+  - {path: job.status, op: eq, value: failed}
+  - {path: job.error.code, op: eq, value: generation_failed}

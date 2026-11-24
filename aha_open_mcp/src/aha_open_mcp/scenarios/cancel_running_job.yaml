@@ -1,0 +1,20 @@
+id: cancel_running_job
+title: "A running job that is cancelled ends cancelled and never has a result"
+covers: "conformance/test_v1_core.py::test_cancel_queued_and_running_and_never_a_result"
+target: sandbox
+requires_worker: fake
+preconditions: [fake_worker_markers]
+side_effects: [creates_job, cancels_job]
+vars: {prompt: "p __slow"}
+steps:
+  - tool: run_job
+    args: {body: {task: image.generate, model: example-image, prompt: "${prompt}", params: {seed: 1}}}
+  - tool: wait_job
+    args: {until: [running], timeout_s: 30}
+  - tool: run_cancel
+  - tool: check_result_image
+assert:
+  - {path: job.status, op: eq, value: cancelled}
+  - {path: job.results, op: len_eq, value: 0}
+  - {path: image.fetched, op: eq, value: false}
+  - {path: image.http_status, op: eq, value: 409}

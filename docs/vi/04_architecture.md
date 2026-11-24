@@ -69,6 +69,8 @@ sau khi job đã `cancelled` bị bỏ.
   loras/                <id>.safetensors [+ <id>.json] do người vận hành đặt (`aha-open loras add`); chỉ safetensors, id a-z0-9_-
   tmp/                  LoRA mà trang web đang nhận; được đổi tên vào loras/ hoặc xoá ngay, không giữ lại
   tls/                  chứng chỉ tự ký cho hồ sơ lan
+  logs/                 gateway.log (xoay vòng theo kích thước; cùng các dòng với terminal) và worker-<tên>.log; không bao giờ chứa token hay prompt
+  run/gateway.json      do `aha-open serve` ghi: pid, started_at, version, source_digest (xoá khi thoát bình thường; nếu crash thì còn lại, mang một pid đã chết)
 ```
 
 Token chỉ lưu dạng hash; giá trị token hiện đúng một lần lúc tạo/duyệt.

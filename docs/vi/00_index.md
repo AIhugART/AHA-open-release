@@ -8,6 +8,7 @@
 | [05_models.md](05_models.md) | Model, phần cứng, giấy phép | Chọn model, triển khai |
 | [06_deployment.md](06_deployment.md) | Ba hồ sơ triển khai | Cài đặt |
 | [07_security.md](07_security.md) | Bảo mật | Mở ra LAN/internet |
+| [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: kiểm thử đầu-cuối và chẩn đoán do agent điều khiển | Kiểm một server thật, gỡ lỗi một job hỏng |
 
 ## Quy ước
 

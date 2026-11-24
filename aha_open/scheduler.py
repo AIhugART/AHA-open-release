@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import runtime
 from .catalog import CATALOG, WORKERS_DIR, ModelSpec, weights_dir, worker_command
 from .config import Config, ModelConfig
 from .errors import ApiError
@@ -342,6 +343,9 @@ class Scheduler:
                 raise LaneError("model_not_installed", err.message) from err
             wdir = weights_dir(self.cfg, mc)
             worker = WorkerProc(cmd, self.cfg.data_dir / "logs" / f"worker-{mc.worker}.log", cwd=WORKERS_DIR / mc.worker)
+            script = WORKERS_DIR / mc.worker / "worker.py"
+            log.info("worker started: %s pid=%s model=%s worker_sha256=%s", mc.worker, worker.proc.pid, mc.id,
+                     runtime.file_digest(script) if script.is_file() else "unknown")
             worker.send({"op": "load", "model": mc.id, "variant": mc.variant, "weights_dir": str(wdir) if wdir else None, "gpu": mc.gpu})
             deadline = time.monotonic() + self.cfg.worker_load_timeout_s
             while True:
