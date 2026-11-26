@@ -15,6 +15,11 @@
 - Mọi lỗi: HTTP status + `{"error": {"code": "<mã>", "message": "<câu cho người>", "retry_after_s": <số|null>}}`.
 - Request mang header `Origin` của trình duyệt bị từ chối `403`, trừ khi người vận hành cho phép tường minh.
 - Client phải bỏ qua trường không biết (để thêm trường không phá tương thích).
+- Chỉ `GET /v1/health`, `POST /v1/enroll` và `GET /v1/enroll/{id}` được gọi không cần token. Mọi route khác —
+  kể cả `GET /v1/manifest` — trả `401 unauthorized` nếu không có token hợp lệ.
+- Khi `retry_after_s` là một số, response còn mang header HTTP `Retry-After` cùng giá trị tính bằng giây nguyên, làm tròn lên.
+- Chỉ các route dưới `/v1` thuộc chuẩn này. Một server có thể có đường khác (trang web riêng của bản cài đặt, `/admin/*` chỉ dành cho
+  người vận hành); client không bao giờ được phụ thuộc vào chúng, và server có thể trả `404` cho chúng.
 
 ## 2. Route
 
@@ -32,6 +37,17 @@
 | `POST /v1/enroll` · `GET /v1/enroll/{id}` | Ghép cặp (tuỳ chọn, khai trong manifest) |
 
 Tải lên theo khúc tồn tại vì input video/ảnh lớn có thể vượt giới hạn thân request của proxy (vd Cloudflare).
+
+Quy tắc upload (client vi phạm một quy tắc sẽ nhận `400 invalid_request` hoặc `400 upload_incomplete`):
+
+- Khúc được đánh số **từ 0**. Một upload `bytes` byte có `max(1, ceil(bytes / part_size))` khúc, đánh số `0` tới `parts - 1`; số khác bị từ chối.
+- Mỗi khúc phải dài **đúng** `part_size` byte, trừ khúc cuối dài đúng phần còn lại (`bytes - part_size × (parts - 1)`). Khúc ngắn hơn hay dài hơn bị từ chối.
+- Một khúc có thể gửi lại trước `complete`; byte mới thay byte cũ. Sau `complete`, gửi khúc bị từ chối.
+- `complete` khi thiếu khúc, hoặc với file có kích thước hay sha256 khác giá trị đã khai, trả `400 upload_incomplete`; trường hợp sai sha256 thì server
+  huỷ upload, client bắt đầu lại bằng `POST /v1/uploads` mới. `complete` trên một upload đã hoàn tất trả `200` lần nữa.
+- Một upload chỉ dùng được bởi token đã tạo nó (token khác nhận `404`). Upload bị xoá sau một khoảng thời gian do server đặt tính từ lúc tạo,
+  dù đã có job dùng hay chưa (cài đặt của người vận hành; không có trong manifest).
+- Job đã được nhận thì giữ nguyên đầu vào của nó: xoá upload không bao giờ lấy mất đầu vào của job đang xếp hàng hoặc đang chạy.
 
 ## 3. Health
 
@@ -93,11 +109,25 @@ Ví dụ MiniMax:
   **người vận hành đặt trên server** (client không tải LoRA lên qua `/v1`) và được đọc lại ở mỗi lần gọi manifest — thêm
   file không cần khởi động lại. Không bao giờ lộ đường dẫn.
 - Model có cung cấp biến thể (trường này là chung; Qwen-Image-2.1 chỉ có `int8`) khai thêm: `variant` (biến thể đang chạy ở server này) và
-  `variants` = `{ "<tên>": {"label", "disk_gib", "vram_gib": {"1k", "native"}, "selected", "recommended"} }`.
+  `variants` = `{ "<tên>": {"label", "disk_gib", "vram_gib": {"1k", "native?"}, "ram_gib", "seconds": {"1k"}, "loras", "quality_note", "installed", "fit", "selected", "recommended"} }` (đều cộng thêm). Qwen-Image-2.1 có bốn biến thể: `int8`, `int8-convrot`, `mixed-p010`, `mixed-p015`. `vram_gib`, `ram_gib`, `seconds` là số đã đo (`null` = chưa đo; số chưa đo không bao giờ từ chối gì). `installed` = trọng số của biến thể đã đủ trên đĩa server; `fit` ∈ `fits` | `tight` | `too_small` | `unknown`, tính từ đỉnh đo ở 1024² so với GPU của server; `loras` = `true` khi đã chạy LoRA thật trên biến thể đó, `null` = chưa thử; `quality_note` = một câu về chất lượng, trích đánh giá của chính nhà phát hành.
   `recommended` là gợi ý theo phần cứng server (chỉ để hiển thị; server không tự đổi biến thể). `vram_gib` là số đo
   thật (`null` = chưa đo).
-- Khả năng video: `durations_s` (danh sách hoặc `{min, max}`), `fps`, `short_edge`, `aspect_ratios`,
+- Khả năng video: `durations_s` (danh sách hoặc `{min, max}`), `fps`, `short_edges`, `aspect_ratios`,
   `audio` (`{channels, sample_rate}` hoặc `null`), `first_frame`, `last_frame`, `max_reference` (`{image, video, audio, total}`).
+  Một model video còn có thể khai thêm (cộng thêm): `sizes` = `[{"aspect_ratio", "short_edge", "width", "height", "tier"}]`, các kích thước đầu ra
+  chính xác (chỉ các cặp đã sinh thật; cặp không có trong danh sách bị từ chối), `frame_grid` = `{"step", "base"}` (model tạo `base + n * step` khung:
+  thời lượng được làm tròn **lên** tới số khung kế tiếp như vậy, vd 5 s ở 24 fps của MiniMax H3 là 124 khung = 5,17 s) và `steps`
+  (`{min, max, default}` như với ảnh).
+  **MiniMax H3** (`minimax-h3-fl2va`) chỉ khai những gì đã chạy trên máy tham chiếu: `durations_s` `{min: 5, max: 5}`, `aspect_ratios` `["16:9"]`,
+  kích thước 1344×768 (`native`, `short_edge` 768) và 608×352 (`preview`, `short_edge` 352), `steps` 20, `first_frame: false`, `last_frame: false`
+  (request có khung hình bị `400`), âm thanh 2 kênh 32 kHz. `variants.mixed.vram_gib` của nó cho các đỉnh đã đo (`preview` 17,2, `native` 19,6).
+  Một clip mất vài phút (khoảng 5 phút ở `preview`, 22 phút ở `native` trên RTX 3090 Ti): luôn tạo job rồi thăm dò. `license.required_ui_label` là
+  `"MiniMax H3"` và phải được hiển thị.
+  **MiniMax H3 tham chiếu** (`minimax-h3-ref2va`, một model riêng) có cùng độ dài clip, số bước, âm thanh và giấy phép, chỉ cung cấp **cỡ `preview`
+  (608×352, `short_edge` 352)** (cỡ native 1344×768 chưa chạy với tham chiếu), và khai `reference_required: true` (request không có ảnh hay video tham chiếu bị
+  `400`; dùng `minimax-h3-fl2va` cho trường hợp chỉ có chữ) cùng `max_reference` `{image: 1, video: 0, audio: 0, total: 1}`: mới chạy thật một ảnh
+  tham chiếu nên chỉ nhận chừng đó (ảnh thứ hai, video hay audio tham chiếu bị `400`). Nó được cài vào thư mục của `minimax-h3-fl2va` (hai model dùng chung
+  bộ mã hoá và các VAE), nên báo `not_installed` cho tới khi có transformer riêng của nó (14 GiB).
 - Task định nghĩa trong v1: `image.generate`, `image.edit`, `video.generate`, `audio.generate`, `speech.generate`.
 
 ## 5. Tạo job
@@ -123,10 +153,16 @@ POST /v1/jobs
   (bool; chỉ model khai `rgba: true`; server thêm câu mô tả nền trong suốt vào prompt). `seed` vắng ⇒ server chọn một
   seed ngẫu nhiên và ghi lại trong `results[].seed`; `steps` vắng ⇒ dùng `capabilities.steps.default`.
 - Model khai `mask: false` thì từ chối vai trò `mask`.
-- `loras`: `[{"id": "<id trong manifest>", "scale": 0.8}]` (≤ `capabilities.loras.max`, `scale` mặc định 1.0, không trùng
+- Tham chiếu cho video: gửi các input `reference` (ảnh), `reference_video` (video) và `reference_audio` (audio) **theo thứ tự model nên đọc**: thứ tự
+  đặt nhãn cho chúng trong prompt (`<Picture 1>`, `<Video 1>`, `<Audio 1>`) và quy định đồng hồ âm thanh/hình, nên đổi thứ tự là một request khác. Upload
+  phải có loại media đúng với vai trò (`image/*`, `video/*`, `audio/*`; nếu không là `400`). Tham chiếu audio không được là tham chiếu duy nhất.
+  Server hay worker không bao giờ tải gì từ URL: tham chiếu luôn là một upload.
+- `params.loras` (nằm trong `params`, như `seed`): `[{"id": "<id trong manifest>", "scale": 0.8}]` (≤ `capabilities.loras.max`, `scale` mặc định 1.0, không trùng
   id). Id lạ, `scale` ngoài khoảng, trường thừa (vd `path`) ⇒ `400 invalid_request` trước khi xếp hàng. Job không có
   `loras` cho kết quả **y hệt** như khi server chưa từng nạp LoRA nào.
-- Video: `params` gồm `aspect_ratio`, `duration_s`, `short_edge`, `seed`.
+- Video: `params` gồm `aspect_ratio`, `duration_s`, `short_edge`, `seed`, và `steps` (chỉ với model khai `capabilities.steps`; vắng nghĩa là mặc
+  định của nó). Model có `capabilities.sizes` nhận `width`, `height` và `num_frames` chính xác từ bảng đó; client không bao giờ gửi `width` hay `height`
+  tự do cho video (`unknown params`).
 - `client_request_id` (tuỳ chọn): gửi lại cùng giá trị trong 10 phút ⇒ trả lại đúng job cũ, không chạy lần hai.
 - Tham số ngoài `capabilities` ⇒ `400 invalid_request` **trước khi** xếp hàng; server không âm thầm kéo giãn hay đổi kích thước.
 
@@ -155,10 +191,17 @@ Khi `succeeded`, mỗi phần tử `results[]`:
 `{"index": 0, "kind": "image", "media_type": "image/png", "width": 2048, "height": 2048, "bytes": 5123456, "sha256": "…", "seed": 42, "loras": [{"id": "ink", "scale": 0.8, "sha256": "…"}]}`
 (server từ chối một kết quả PNG có cỡ khác cỡ đã chấp nhận — job `failed`, không bao giờ resize ngầm; ảnh Qwen là PNG
 RGBA nguyên trạng model trả về);
-video thêm `duration_s`, `fps`, `has_audio`.
+video thêm `duration_s`, `fps`, `has_audio`, và với model có `capabilities.sizes` thì thêm `width` và `height` (server cho job `failed` nếu worker báo
+cỡ khác cỡ đã chấp nhận, hoặc không báo cỡ, đúng như với ảnh).
 
 - Job chỉ đọc/huỷ được bởi đúng token đã tạo nó; token khác nhận `404` (không lộ sự tồn tại).
+- `POST /v1/jobs/{id}/cancel` trả `200` kèm job. Server chờ một khoảng ngắn, có giới hạn (vài giây) cho job dừng rồi mới trả lời, nên thân thường là
+  `cancelled`; nếu job chưa dừng thì nó được trả ở trạng thái hiện tại, và client tiếp tục thăm dò `GET /v1/jobs/{id}` cho tới khi trạng thái cuối cùng.
+  Huỷ một job đã ở trạng thái cuối không đổi gì và trả `200` kèm job đó.
 - Huỷ có hiệu lực ở ranh giới bước kế tiếp; sau `cancelled` không bao giờ có kết quả.
+- `429 busy` không chỉ là `limits.max_queue_per_client`. Server còn có thể từ chối vì cả hàng đợi đầy, vì client tạo quá nhiều job trong phút vừa
+  rồi, hoặc vì quá nhiều upload đang được lưu cho client. Các con số đó là cấu hình của người vận hành và **không** có trong manifest. Client chờ
+  `retry_after_s` (và header `Retry-After`) rồi thử lại; không bao giờ thử lại dồn dập.
 - Kết quả giữ ít nhất `limits.result_ttl_s` rồi xoá.
 
 ## 7. Ghép cặp (tuỳ chọn)

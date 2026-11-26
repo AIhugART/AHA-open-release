@@ -26,6 +26,12 @@ It complements, and does not replace, the conformance suite in `conformance/`:
 | Runs | in CI, on every change | when an agent or a developer asks |
 | Evidence level | 🧪 | 🧪 with the fake worker, ✅ with a real model |
 
+### The user's machine is the one place `aha-open-mcp` cannot reach
+
+When the failure is on someone else's machine, the evidence is the **support report** (`aha-open report`, or the web page's *Report* entry; see
+[04_architecture.md](04_architecture.md) section 6.2). Read it in this order: the *Code* line (is the process the code on disk?), the age of each log (a log older
+than the failure is a hypothesis), then the log ends. The report is built from named fields and redacted; it holds no token and no prompt.
+
 ## 2. Boundaries
 
 - It is a **client**. It talks to the server only over `/v1` and reads only the files an operator can read in the data
@@ -105,14 +111,15 @@ Its environment is its own (`aha_open_mcp/pyproject.toml`, `uv.lock`, MCP SDK `>
 | `check_health`, `probe_v1` | Read-only GET of `/v1/health`, `/v1/manifest`, `/v1/jobs/{id}`; only allowlisted fields are copied; any other path is refused |
 | `read_gateway_log`, `read_worker_log` | Tail with path, last-modified time and age; follows rotated files; `NOT FOUND` is said, never an empty tail |
 | `full_diagnostics` | Header, health, manifest, and the end of the logs in one call |
-| `run_upload`, `run_job`, `wait_job`, `run_cancel` | Act through `/v1` like any client. Each prints `SIDE EFFECTS:` first; a target with a real model is refused unless `allow_gpu=true`; nothing is retried; a prompt is never echoed |
+| `run_upload`, `run_job`, `wait_job`, `run_cancel` | Act through `/v1` like any client (`run_upload` takes `rgb` for a plain-colour reference image; one `wait_job` waits at most 600 s, so a longer job chains two steps; `min_step` waits until that sampling step is reported, so a cancel lands in the middle of sampling). Each prints `SIDE EFFECTS:` first; a target with a real model is refused unless `allow_gpu=true`; nothing is retried; a prompt is never echoed |
 | `assert_result_image` | Downloads the result and judges the pixels: PNG signature, header size equals the reported size, sha256 and byte count match |
+| `assert_result_video` | Downloads the result and judges the FILE by reading its own mp4 boxes (no codec library): picture size, frame count, frame rate, duration, audio track (channels, sample rate), the label comment; PASS needs every comparison with what the job reported (size, fps ±0.01, duration ±0.05 s, audio present or absent, sha256, byte count). A cut or non-mp4 file is `parsed: false` with the reason, never an exception |
 | `list_scenarios`, `get_scenario`, `run_scenario`, `diff_runs` | Scenarios are data (section 5); a broken file is listed `INVALID` with its reason. `run_scenario` runs, asserts and records (verdicts, a few facts, a 12-hex hash of the prompt - never the prompt); `diff_runs` shows `REGRESSION`, `FIXED`, `NEW` and `CHANGED fact` between the last two runs |
 | `diagnose_job` | For a failed job: the cause and the action for its error code (a table guarded in both directions against the gateway's source and this specification), the gateway log lines of the job's time window with the pollers' own lines removed and counted, and the last stage line the worker wrote. `generation_failed` is split by the gateway's own message (out of RAM, native crash, wrong output size, timeout...) |
 | `run_ui_url` | Sandbox only: the web page's address with the sandbox token in the fragment (it dies with the sandbox). A `live` token is never printed |
-| `run_sandbox_start`, `run_sandbox_stop` | A real `aha-open serve` (`crash_on_load` makes the fake worker die natively while loading, the shape of the 2026-11-23 Qwen crash) on a random loopback port with the fake worker; stopped when the MCP server exits; only a folder the tool created and marked is ever deleted |
+| `run_sandbox_start`, `run_sandbox_stop` | A real `aha-open serve` (`sized_video=true` adds the fake model `example-video-sized` that enforces exact video sizes, for the scenarios `cancel_running_video` and `video_size_mismatch_rejected`; `model=minimax-h3-fl2va` or `model=minimax-h3-ref2va` with `real_model` points at the real worker, weights from `AHA_OPEN_H3_WEIGHTS` or `<data>/models/minimax-h3-fl2va/mixed`, and `variant=int8|mixed|nvfp4` picks the build (a build that is unknown or not on disk is refused with the command that fetches it); `memory_limit_gib` sets the operator's `[gpu]` limit, e.g. 15.5 to imitate a 16 GB card; `crash_on_load` makes the fake worker die natively while loading, the shape of the 2026-11-23 Qwen crash) on a random loopback port with the fake worker; stopped when the MCP server exits; only a folder the tool created and marked is ever deleted |
 
-`real_model=true` runs the real Qwen INT8 worker from the weights and worker environment already in the checkout; it needs
+`real_model=true` runs the real Qwen INT8 worker from the weights and worker environment already in the checkout; (Qwen: only the `int8` variant; the sandbox chooses a build for MiniMax H3 only. The ConvRot variants were run for real through the `live` target on 2026-11-25 — `POST /admin/models/{id}/use` to switch, then `run_job` / `wait_job` / `assert_result_image` — with the operator's configuration saved first and restored byte for byte afterwards; see [05_models.md](05_models.md) §3.4.) it needs
 `allow_gpu=true` and at least 20 GiB of free RAM (the measured peak is 17.6 GiB; a load with only a few GiB free once died with a native
 crash), otherwise it refuses and says the number. `allow_low_ram=true` is the person's explicit acceptance of that risk. A model that is
 already loaded is not re-checked (its RAM is why free RAM is low). A scenario written for the fake worker's marker words is refused on a

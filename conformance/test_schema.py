@@ -96,3 +96,37 @@ def test_unauthenticated_routes_are_exactly_health_and_enroll(spec: dict) -> Non
         if method in {"get", "post", "put"} and op.get("security") == []
     }
     assert open_routes == {"/v1/health", "/v1/enroll", "/v1/enroll/{enroll_id}"}
+
+
+def _doc() -> str:
+    return " ".join(DOC.read_text(encoding="utf-8").split())
+
+
+@pytest.mark.parametrize(
+    "needle",
+    [
+        "Only `GET /v1/health`, `POST /v1/enroll` and `GET /v1/enroll/{id}` can be called without a token",
+        "`GET /v1/manifest` included",
+        "also carries the HTTP header `Retry-After`",
+        "Parts are numbered **from 0**",
+        "`max(1, ceil(bytes / part_size))` parts",
+        "**exactly** `part_size` bytes, except the last",
+        "A part may be sent again before `complete`",
+        "`429 busy` is not only `limits.max_queue_per_client`",
+        "are **not** in the manifest",
+        "The server waits a short, bounded time",
+        "the client keeps polling",
+        "a client must never depend on them",
+        "`params.loras` (inside `params`, like `seed`)",
+        "whether or not a job used it",
+        "A job that was accepted keeps its inputs",
+    ],
+)
+def test_doc_states_the_contracts_the_server_enforces(needle: str) -> None:
+    """Section 'Upload rules', auth matrix, Retry-After, busy and cancel wording must stay in docs/03_api_v1.md."""
+    assert needle in _doc()
+
+
+def test_openapi_documents_retry_after_and_upload_busy(spec: dict) -> None:
+    assert "Retry-After" in spec["components"]["responses"]["Error"]["headers"]
+    assert "429" in spec["paths"]["/v1/uploads"]["post"]["responses"]

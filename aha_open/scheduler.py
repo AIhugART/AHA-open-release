@@ -50,6 +50,7 @@ class Lane:
         self.queue: list[Entry] = []
         self.worker: WorkerProc | None = None
         self.model: str | None = None
+        self.variant: str | None = None  # the variant of `model` that is loaded: another variant of the same model is another worker
         self.loading: str | None = None
         self.running: str | None = None
         self.degraded = False
@@ -147,6 +148,31 @@ class Scheduler:
         if job["status"] == "loading_model":
             self._finish_cancelled(job_id)
 
+    def busy(self, model_id: str) -> bool:
+        """Is a job of this model waiting, loading or running? Switching or deleting a variant must not cut it off."""
+        for lane in list(self.lanes.values()):
+            with lane.cond:
+                if lane.loading == model_id or any(e.model_id == model_id for e in lane.queue):
+                    return True
+                if lane.running and lane.model == model_id:
+                    return True
+        return False
+
+    def release(self, model_id: str) -> bool:
+        """Stop the resident worker of this model (frees its VRAM and the file handles) so that the next job loads whatever is
+        configured then. False when a job is in the way: the caller must have checked ``busy`` and says 409 itself."""
+        released = False
+        for lane in list(self.lanes.values()):
+            with lane.cond:
+                if lane.model != model_id or lane.worker is None:
+                    continue
+                if lane.running or lane.loading:
+                    return False
+                lane.worker.stop()
+                lane.worker, lane.model, lane.variant = None, None, None
+                released = True
+        return released
+
     def health(self) -> dict:
         lanes = list(self.lanes.values())
         queued = sum(len(lane.queue) for lane in lanes)
@@ -217,7 +243,7 @@ class Scheduler:
             self._fail(job_id, "generation_failed", "the job's request is no longer available")
             return
         try:
-            if not (lane.worker and lane.worker.alive() and lane.model == mc.id):
+            if not (lane.worker and lane.worker.alive() and lane.model == mc.id and lane.variant == (mc.variant or None)):
                 if not self.store.advance_job(job_id, "loading_model"):
                     return
                 self._ensure_model(lane, mc, spec)
@@ -232,6 +258,8 @@ class Scheduler:
             lane.running = None
             self._forget(job_id)
             (jobdir / "request.json").unlink(missing_ok=True)  # the prompt never outlives the job
+            for own_input in jobdir.glob("in_*"):  # nor do the client's files (app.own_inputs); results stay until they expire
+                own_input.unlink(missing_ok=True)
             if (self.store.job(job_id) or {}).get("status") != "succeeded":
                 shutil.rmtree(jobdir, ignore_errors=True)
 
@@ -284,7 +312,7 @@ class Scheduler:
                     self._fail(job_id, code if code in WORKER_ERROR_CODES else "generation_failed", str(event.get("message", "generation failed")))
                 return
             elif kind == "exited":
-                lane.worker, lane.model, lane.degraded = None, None, True
+                lane.worker, lane.model, lane.variant, lane.degraded = None, None, None, True
                 if self._cancelled(job_id):
                     self._finish_cancelled(job_id)
                     return
@@ -322,19 +350,28 @@ class Scheduler:
                 for key in ("width", "height", "duration_s", "fps", "has_audio"):
                     if key in out:
                         item[key] = out[key]
+                want = (accepted.get("width"), accepted.get("height"))
+                if want != (None, None):
+                    # The same invariant as for images: the size is exactly what was accepted, never a silent resize. A worker that
+                    # does not report the size of the video it made cannot be checked, so that is an error too.
+                    got = (item.get("width"), item.get("height"))
+                    if got == (None, None):
+                        raise LaneError("generation_failed", "the worker did not report the size of the video it produced")
+                    if got != want:
+                        raise LaneError("generation_failed", f"output is {got[0]}x{got[1]} but {want[0]}x{want[1]} was accepted")
             results.append(item)
         return results
 
     # ------------------------------------------------------------------ model residency
     def _drop_worker(self, lane: Lane) -> None:
-        worker, lane.worker, lane.model = lane.worker, None, None
+        worker, lane.worker, lane.model, lane.variant = lane.worker, None, None, None
         if worker:
             worker.kill()
 
     def _ensure_model(self, lane: Lane, mc: ModelConfig, spec: ModelSpec) -> None:
         if lane.worker:
             lane.worker.stop()  # one model on the GPU at a time: release the VRAM before loading the next
-            lane.worker, lane.model = None, None
+            lane.worker, lane.model, lane.variant = None, None, None
         lane.loading = mc.id
         try:
             try:
@@ -346,7 +383,10 @@ class Scheduler:
             script = WORKERS_DIR / mc.worker / "worker.py"
             log.info("worker started: %s pid=%s model=%s worker_sha256=%s", mc.worker, worker.proc.pid, mc.id,
                      runtime.file_digest(script) if script.is_file() else "unknown")
-            worker.send({"op": "load", "model": mc.id, "variant": mc.variant, "weights_dir": str(wdir) if wdir else None, "gpu": mc.gpu})
+            files = list((spec.variants.get(mc.variant) or {}).get("files", ()))  # the transformer file of this variant, relative to weights_dir
+            worker.send({"op": "load", "model": mc.id, "variant": mc.variant, "weights_dir": str(wdir) if wdir else None, "gpu": mc.gpu,
+                         "memory_limit_gib": self.cfg.gpu_memory_limit_gib or None,
+                         "files": files})
             deadline = time.monotonic() + self.cfg.worker_load_timeout_s
             while True:
                 event = worker.next_event(0.5)
@@ -357,7 +397,7 @@ class Scheduler:
                     continue
                 kind = event.get("event")
                 if kind == "loaded":
-                    lane.worker, lane.model, lane.degraded = worker, mc.id, False
+                    lane.worker, lane.model, lane.variant, lane.degraded = worker, mc.id, mc.variant or None, False
                     log.info("lane %s: %s loaded", lane.gpu, mc.id)
                     return
                 if kind == "failed":

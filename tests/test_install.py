@@ -47,10 +47,14 @@ def test_recommend_variant(gpu_mib, ram, expected):
     assert reason and reason[0].islower()  # one sentence the CLI can put after a colon
 
 
-def test_qwen_offers_int8_only():
+FOUR = ["int8", "int8-convrot", "mixed-p010", "mixed-p015"]
+
+
+def test_qwen_offers_four_variants_and_never_bf16():
     """The full BF16 model was dropped: no catalog entry, install plan or worker path may bring it back."""
-    assert list(QWEN.variants) == ["int8"] and list(QWEN.min_vram_mib) == ["int8"]
-    assert list(INSTALLABLE["qwen-image-2.1"]["variants"]) == ["int8"]
+    assert list(QWEN.variants) == FOUR and set(QWEN.min_vram_mib) <= set(FOUR)
+    assert list(INSTALLABLE["qwen-image-2.1"]["variants"]) == FOUR
+    assert "bf16" not in QWEN.variants
     source = (ROOT / "workers" / "qwen_image" / "worker.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == "BF16_RESIDENT_GIB"]
@@ -118,8 +122,12 @@ def test_manifest_marks_the_recommended_variant(monkeypatch, tmp_path):
     cfg = Config(data_dir=tmp_path, models=[ModelConfig("qwen-image-2.1", "qwen_image", variant="int8")])
     entry = manifest_model(cfg, cfg.models[0], QWEN)
     assert entry["variant"] == "int8"
-    assert entry["variants"]["int8"] == {**QWEN.variants["int8"], "selected": True, "recommended": True}
-    assert list(entry["variants"]) == ["int8"] and entry["variants"]["int8"]["disk_gib"] == 18
+    assert entry["variants"]["int8"] == {
+        **catalog.variant_public(QWEN.variants["int8"]), "selected": True, "recommended": False, "installed": False, "fit": "fits",
+    }
+    assert list(entry["variants"]) == FOUR and entry["variants"]["int8"]["disk_gib"] == 18
+    assert [n for n, v in entry["variants"].items() if v["recommended"]] == ["int8-convrot"]  # best measured quality that fits
+    assert not {"folder", "files", "runtime"} & set(entry["variants"]["int8"])  # internal fields never reach a client
 
 
 def test_each_variant_has_its_own_weights_directory(tmp_path):
@@ -152,7 +160,7 @@ def test_install_from_a_local_directory_records_the_choice(tmp_path):
     weights = tmp_path / "downloaded"
     weights.mkdir()
     (weights / "model_index.json").write_text("{}", encoding="utf-8")
-    argv = ["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1",
+    argv = ["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "int8",
             "--accept-license", "qwen-research", "--from-dir", str(weights), "--skip-env"]
     assert main(argv) == 0
     cfg = load(tmp_path)
@@ -173,15 +181,21 @@ def test_install_rejects_a_directory_that_is_not_the_model(tmp_path, capsys):
     assert load(tmp_path).model("qwen-image-2.1") is None
 
 
-def test_the_variant_option_is_gone(tmp_path):
+def test_a_variant_that_is_not_offered_is_refused_and_the_choices_are_named(tmp_path, capsys):
     _init(tmp_path)
-    with pytest.raises(SystemExit):  # argparse: unrecognized arguments
-        main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "bf16", "--accept-license", "qwen-research"])
+    capsys.readouterr()
+    code = main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "bf16", "--accept-license", "qwen-research"])
+    out = capsys.readouterr().out
+    assert code == 2 and "no variant 'bf16'" in out and "int8-convrot" in out and "mixed-p015" in out
 
 
-def test_deferred_and_unknown_models_are_refused(tmp_path, capsys):
+def test_unknown_models_are_refused_and_minimax_asks_for_its_own_licence_key(tmp_path, capsys):
     _init(tmp_path)
+    capsys.readouterr()  # drop init's output: it prints tmp_path, whose name contains this test's name
     assert main(["--data-dir", str(tmp_path), "models", "install", "minimax-h3-fl2va", "--accept-license", "x"]) == 2
-    assert "deferred" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "--accept-license minimax-h3" in out and "MiniMax H3 Community License" in out
     assert main(["--data-dir", str(tmp_path), "models", "install", "no-such-model"]) == 2
+    assert "unknown model" in capsys.readouterr().out
     assert main(["--data-dir", str(tmp_path), "models", "install", "example-image"]) == 2  # test-only models are not installable
+    assert "unknown model" in capsys.readouterr().out

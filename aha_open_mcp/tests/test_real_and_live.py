@@ -127,3 +127,22 @@ def test_model_resident_reads_the_real_server_before_and_after_a_model_is_loaded
         assert ram.model_resident(t) is True
     finally:
         tools.run_sandbox_stop()
+
+
+def test_an_h3_build_that_is_unknown_or_not_on_disk_is_refused_with_the_command_that_fetches_it(tmp_path):
+    (tmp_path / "model_index.json").write_text("{}")
+    with pytest.raises(TargetError, match="offers no build 'int4'.*int8, mixed, nvfp4"):
+        sandbox.real_h3_models(str(tmp_path), variant="int4")
+    if (targets.REPO / "workers" / "minimax_h3" / ".venv").exists():
+        with pytest.raises(TargetError, match=r"nvfp4\.safetensors is not in .*--variant nvfp4"):
+            sandbox.real_h3_models(str(tmp_path), variant="nvfp4")
+
+
+def test_waiting_for_a_sampling_step_returns_once_that_step_is_reported(stopped):
+    from aha_open_mcp import jobs
+
+    sandbox.start()  # its own: the module-wide sandbox may have been stopped by a test above
+    t = targets.resolve("sandbox")
+    submitted = jobs.submit(t, {"task": "image.generate", "model": "example-image", "prompt": "x", "params": {"steps": 20}})
+    job = jobs.wait(t, submitted["job_id"], 60, ("running",), min_step=3)
+    assert job["status"] in ("running", "succeeded") and job["progress"]["step"] >= 3 and not job.get("timed_out")

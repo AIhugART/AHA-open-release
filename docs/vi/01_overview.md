@@ -30,9 +30,13 @@ Ngược lại, AHA open không phụ thuộc AHA Studio: client nào nói `/v1`
 Studio là một client của nó; mã của hai dự án không phụ thuộc nhau.
 
 **AHA open có giao diện web riêng, đơn giản** (`/ui/`) để tạo ảnh và tạo video mà không cần AHA Studio: chọn model, gõ
-prompt, chọn kích thước/thời lượng, đính kèm ảnh tham chiếu hoặc khung đầu/cuối, theo dõi tiến độ, huỷ, tải kết quả.
-Nó **không** phải kho ảnh hay trình chỉnh sửa — chỉ giữ các kết quả gần đây trong thời hạn lưu job. Giao diện này là
-một client `/v1` như mọi client khác, không có đường đi riêng tới model.
+prompt, chọn kích thước, đính kèm ảnh tham chiếu, theo dõi tiến độ, huỷ, tải kết quả. Với model video, trang đưa ra
+các kích thước mà model khai báo theo tên (MiniMax H3: `native` 1344×768 và `preview` 608×352), độ dài cố định khi model
+chỉ có một độ dài, seed, ghi chú về bộ nhớ GPU mỗi kích thước cần, và trình phát clip kèm độ dài, tốc độ khung hình và
+âm thanh; nhãn bắt buộc của model ("MiniMax H3") và các vùng lãnh thổ mà model không được cấp phép được hiển thị cạnh
+model và kết quả. Trang cũng có panel tải model, với ô xác nhận giấy phép và, khi giấy phép loại trừ một số vùng, một ô
+xác nhận riêng rằng người dùng không ở các vùng đó. Nó **không** phải kho ảnh hay trình chỉnh sửa — chỉ giữ các kết quả
+gần đây trong thời hạn lưu job. Giao diện này là một client `/v1` như mọi client khác, không có đường đi riêng tới model.
 
 ## 4. Nguyên tắc
 

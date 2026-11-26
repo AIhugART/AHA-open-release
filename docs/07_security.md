@@ -40,7 +40,7 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 12. **`local_client.token`** (the `local` profile) is written only when the profile is `local`, readable only by the current user, and removed
     when the profile changes.
 13. **A model with "hosted service" obligations** (MiniMax H3) is off by default on the `internet` profile.
-14. **`/admin` is for the person at the machine** (the LoRA manager and installing a model, which downloads about 18 GB and builds a
+14. **`/admin` is for the person at the machine** (the LoRA manager, the support report with the end of the logs, and installing, switching and deleting a model variant, which downloads up to 18 GB, deletes files and builds a
     Python environment, so a page on another site or another machine must never be able to start it). Only in the `local` profile, only for a loopback peer that asks for a loopback name, and it still needs a token; any other case answers `404`. A loopback peer alone is not enough: in the `internet` profile the tunnel connects from `127.0.0.1`.
 
 ## 4. Mandatory negative tests (the conformance suite)
@@ -61,6 +61,8 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 | The `internet` profile, MiniMax obligations not accepted | the model's `state` is not `ready`, jobs are refused |
 | `/admin/loras` in the `lan`/`internet` profile, even with a valid token and `Host: 127.0.0.1` | `404`, nothing written |
 | `/admin/loras` without a token / with a wrong token | `401`, nothing written |
+| `/admin/report` without a token / with a foreign `Host` / in the `internet` profile through the tunnel's path | `401` / `403` / `404`: the logs are not served |
+| A token or a prompt in the log of a real gateway that ran a job | not in `GET /admin/report`; a secret-shaped value placed in a log is `[redacted]` in the report |
 | `/admin/loras` with a foreign `Host` or `Origin` | `403`, nothing written |
 | An admin upload that is not a LoRA, has a bad id or bad details | `400`, nothing left in `loras/` or `tmp/` |
 | `/admin/models` (list, install, status, cancel) in the `internet` profile, even through the tunnel's own path (`Host: 127.0.0.1` or the public name) | `404`, no process started |

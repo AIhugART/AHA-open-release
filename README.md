@@ -4,11 +4,13 @@
 standard HTTP API (`/v1`). A client sends a request to generate or edit an image and gets the result back; AHA Studio
 (a creative-suite client) is the first client, and the bundled web page (`/ui/`) is another.
 
-> **Status (2026-11-24): pre-release `0.1.0.dev1`, with a Windows installer.** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
-> (INT8 build, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
+> **Status (2026-11-26): pre-release `0.1.0.dev2`, with a Windows installer.** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
+> (four quantized variants to choose from, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
 > generation, editing, transparent images, cancelling and LoRA through the gateway, installed from a built wheel in a clean
-> environment. The web page (`/ui/`) was also driven in a real browser (connect, generate, result image, download). **Not tried yet:** the `lan` profile from a second machine, the `internet` profile
-> (needs a real Cloudflare account), and video (MiniMax H3 is deferred). Per-item evidence levels are in
+> environment. The web page (`/ui/`) was also driven in a real browser (connect, generate, result image, download). Video with
+> MiniMax H3 (text to video, and one reference image) has also been run for real through the gateway on that machine.
+> **Not tried yet:** the `lan` profile from a second machine and the `internet` profile
+> (needs a real Cloudflare account). Per-item evidence levels are in
 > [docs/05_models.md](docs/05_models.md) §3.
 
 ## Quick start on Windows (installer)
@@ -18,8 +20,9 @@ standard HTTP API (`/v1`). A client sends a request to generate or edit an image
    Windows SmartScreen may warn the first time.
 2. Run it (about 16 MiB, no administrator rights; it needs the internet the first time, to fetch Python). Then Start menu ▸ **AHA open**: the
    gateway starts in the background and the web page opens.
-3. On the page, tick the licence box and press **Download model** (Qwen-Image-2.1 INT8, about 18 GB; research and evaluation use only —
-   read the licence it shows). You need an NVIDIA GPU with about 10 GiB of VRAM or more and about 25 GB of free disk.
+3. On the page, tick the licence box and press **Download model** (Qwen-Image-2.1, the variant that fits your GPU, about 17 GB; research and evaluation use only —
+   read the licence it shows). You need an NVIDIA GPU with about 10 GiB of VRAM or more and about 25 GB of free disk. The **Models** panel then lets you
+   download another variant, switch between them, or delete one.
 
 Tried for real on one machine (RTX 3090 Ti, Windows 11): installed, model downloaded through the page, the reference picture generated
 with the same bytes as the earlier measurement, uninstalled. **Not tried yet:** the interactive wizard, the SmartScreen prompt, a machine
@@ -30,18 +33,19 @@ with no Python at all. macOS is not supported in v1. Details and how to build th
 ```bash
 uv sync --extra dev --extra download
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research   # the INT8 build, ~18 GB
+aha-open models install qwen-image-2.1 --accept-license qwen-research   # the best variant for your GPU (~17 GB); see `models list`
 aha-open serve                                                          # listens on 127.0.0.1:8890
 aha-open open                                                           # opens the web page, no token to paste
 ```
 
-Qwen-Image-2.1 is offered as the **INT8 build only** (~18 GB of disk, ~9.5 GiB of VRAM at 1024², suits 12–24 GB GPUs);
+Qwen-Image-2.1 is offered in **four quantized variants** to fit the machine — `int8`, `int8-convrot`, `mixed-p010`, `mixed-p015`
+(15–18 GB of disk, 8–10 GiB of VRAM at 1024², suit 12–24 GB GPUs; `aha-open models list` shows which fit and which are installed, `models use` / `models remove` switch and delete);
 the full BF16 model is not supported.
 
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — the file is checked (safetensors
 only) and then appears in the manifest and in `/ui/`; a client picks it with `params.loras`.
 
-On the machine that runs AHA open, the web page can also add and remove LoRA files (**Manage LoRA files**), and **Refresh** re-reads the list after you copy files in by hand; no restart is needed.
+On the machine that runs AHA open, the web page can also add and remove LoRA files (**Settings ▸ Manage Models**), and **Refresh** re-reads the list after you copy files in by hand; no restart is needed. If something does not work, **Report** (or `aha-open report`) makes one text with the machine, the models and the end of the logs, without your token or prompts, for you to copy and send; nothing is sent by AHA open. The page is described in [docs/10_web_ui.md](docs/10_web_ui.md).
 
 A wheel can be built with `uv build`; it carries the worker sources and the web page, and `aha-open models install` creates
 the worker's own environment from its lock file.

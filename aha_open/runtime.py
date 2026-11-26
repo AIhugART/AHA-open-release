@@ -26,8 +26,9 @@ LOG_NAME = "gateway.log"
 RECORD_NAME = "gateway.json"
 LOG_MAX_BYTES = 5 * 1024 * 1024
 LOG_BACKUPS = 3
-# Loggers that do not propagate to the root logger (uvicorn configures its own handlers).
-_LOGGERS = ("", "uvicorn", "uvicorn.error", "uvicorn.access")
+# Loggers that need the file handler: the root logger (the gateway's own) and the two uvicorn loggers that do not propagate to it.
+# `uvicorn.error` is NOT one of them: it has no handler of its own and propagates to `uvicorn`, so a handler on both wrote every line twice.
+_LOGGERS = ("", "uvicorn", "uvicorn.access")
 
 
 def source_digest(root: Path | None = None) -> str:

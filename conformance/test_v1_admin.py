@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import struct
 
-from conftest import Api, new_client_token
+from conftest import Api, image_job, new_client_token
 
 from aha_open import loras
 
@@ -81,6 +81,7 @@ def test_no_token_or_a_wrong_token_is_401(gw):
     for token in (None, "aho_not-a-real-token"):
         anon = Api(gw.base, token)
         assert anon.get("/admin/loras").status_code == 401
+        assert anon.get("/admin/report").status_code == 401
         assert anon.put("/admin/loras/ink", content=lora_bytes()).status_code == 401
         assert anon.delete("/admin/loras/ink").status_code == 401
     assert not list(loras.lora_dir(gw.cfg).glob("*"))
@@ -89,6 +90,7 @@ def test_no_token_or_a_wrong_token_is_401(gw):
 def test_a_foreign_host_or_origin_is_403_before_anything_else(gw):
     token = gw.tokens["local"]
     assert Api(gw.base, token, host="evil.example").get("/admin/loras").status_code == 403  # DNS rebinding
+    assert Api(gw.base, token, host="evil.example").get("/admin/report").status_code == 403  # the logs are not for a rebinding page either
     page = Api(gw.base, token)
     refused = page.put("/admin/loras/ink", headers={"Origin": "https://evil.example"}, content=lora_bytes())
     assert refused.status_code == 403  # a web page on another site cannot drive the admin page
@@ -101,8 +103,22 @@ def test_the_internet_profile_has_no_admin_page_even_through_the_tunnel_path(mak
     token = new_client_token(gw, "remote")
     for host in ("aha.example.com", "127.0.0.1"):
         tunnel = Api(gw.base, token, host=host)
-        for method, path in (("GET", "/admin/loras"), ("PUT", "/admin/loras/ink"), ("DELETE", "/admin/loras/ink")):
+        for method, path in (("GET", "/admin/loras"), ("PUT", "/admin/loras/ink"), ("DELETE", "/admin/loras/ink"), ("GET", "/admin/report")):
             sent = tunnel.request(method, path, content=lora_bytes() if method == "PUT" else None)
             assert sent.status_code == 404, (host, method)
     assert not list(loras.lora_dir(gw.cfg).glob("*"))
     assert Api(gw.base, token, host="127.0.0.1").get("/v1/manifest").status_code == 200  # /v1 is unaffected
+
+
+# ---------------------------------------------------------------------------------------------- the support report
+
+
+def test_the_report_is_plain_text_for_the_person_at_this_machine_and_carries_no_token_and_no_server_path(gw, api):
+    api.job(image_job("SENTINEL-PROMPT-report-3f9a"))  # a job to leave something in the logs
+    done = api.get("/admin/report")
+    assert done.status_code == 200 and done.headers["content-type"].startswith("text/plain")
+    text = done.text
+    assert text.startswith("AHA open support report") and "== Machine ==" in text and "== Models ==" in text and "example-image" in text
+    assert gw.tokens["local"] not in text and "SENTINEL-PROMPT" not in text
+    assert str(gw.cfg.data_dir) not in text
+    assert done.headers.get("cache-control") == "no-store"  # a log excerpt is not kept by a cache

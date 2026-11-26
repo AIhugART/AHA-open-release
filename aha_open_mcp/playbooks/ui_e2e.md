@@ -19,7 +19,7 @@ shown with a download link, "Done.", 0 console errors or warnings. A background 
 Needs about 9.5 GiB of VRAM and 17.6 GiB of free RAM (measured). The tool refuses below 20 GiB free RAM and says the number.
 
 1. Close other programs until `check_harness` / the refusal message shows enough free RAM.
-2. `run_sandbox_start(real_model=true, allow_gpu=true)`  (weights from `reference/Qwen-Image-2.1/Image21-INT8`, worker environment
+2. `run_sandbox_start(real_model=true, allow_gpu=true)`  (weights from the installed model, `<data dir>/models/qwen-image-2.1/int8`, worker environment
    `workers/qwen_image/.venv`; set `AHA_OPEN_QWEN_WEIGHTS` or `weights_dir` to use another folder).
 3. `run_scenario("real_generate_1k_seed_42")`: the first job loads the model (about 90 s cold, measured), then draws. The verdict
    carries evidence level real model, and the result's sha256 is recorded.

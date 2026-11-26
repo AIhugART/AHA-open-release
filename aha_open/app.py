@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import secrets
 import shutil
@@ -33,6 +34,7 @@ from .loras import add as add_lora
 from .loras import remove as remove_lora
 from .loras import scan as scan_loras
 from .model_install import InstallManager
+from .report import build_report
 from .scheduler import Scheduler
 from .store import TERMINAL, Store
 from .util import iso, new_id, now, sha256_file
@@ -81,6 +83,21 @@ def admin_allowed(profile: str, peer: str | None, host_header: str) -> bool:
     return profile == "local" and peer in LOOPBACK_PEERS and _strip_port(host_header) in LOOPBACK_HOSTS
 
 
+def own_inputs(jobdir: Path, resolved: list[dict]) -> None:
+    """Give the job its own name for every input file and point the request at it.
+
+    An upload lives by its own clock (``Scheduler.sweep`` deletes it by age); a job may wait in the queue far longer, so it must
+    not read the upload's file. A hard link costs no space; a file system without hard links (exFAT) gets a copy.
+    """
+    for index, item in enumerate(resolved):
+        mine = jobdir / f"in_{index}"
+        try:
+            os.link(item["path"], mine)
+        except OSError:
+            shutil.copyfile(item["path"], mine)  # a source that is gone raises FileNotFoundError here
+        item["path"] = str(mine)
+
+
 class GuardMiddleware:
     """Host allow-list (DNS rebinding) and Origin rule (hostile web pages), plus no-store on everything (rules 6)."""
 
@@ -120,6 +137,7 @@ def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
     auth = Auth(cfg, store)
     scheduler = Scheduler(cfg, store)
     installer = installer or InstallManager(cfg)
+    installer.attach_scheduler(scheduler)  # switching or deleting a variant must not cut a job off
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -254,6 +272,13 @@ def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
             raise not_found("unknown LoRA")
         return Response(status_code=204)
 
+    # The support report (aha_open/report.py): text the person copies or saves and sends to whoever supports them. Same guard as the
+    # other admin routes, so the logs it carries are never offered to the network.
+    @app.get("/admin/report")
+    def admin_report(request: Request):
+        admin_client(request)
+        return Response(build_report(cfg), media_type="text/plain; charset=utf-8")
+
     # Install a model from the web page (aha_open/model_install.py). Same guard as the LoRA page: this machine, local profile.
     @app.get("/admin/models")
     def admin_list_models(request: Request):
@@ -263,7 +288,7 @@ def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
     @app.post("/admin/models/{model_id}/install", status_code=202)
     def admin_install_model(model_id: str, request: Request, body: dict = BODY):
         admin_client(request)
-        return installer.start(model_id, body.get("accept_license"))
+        return installer.start(model_id, body.get("accept_license"), body.get("confirm_territory", False), body.get("variant"))
 
     @app.get("/admin/models/{model_id}/install")
     def admin_install_status(model_id: str, request: Request):
@@ -271,6 +296,16 @@ def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
         if model_id not in INSTALLABLE:
             raise not_found("this model cannot be installed from here")
         return installer.status(model_id)
+
+    @app.post("/admin/models/{model_id}/use")
+    def admin_use_variant(model_id: str, request: Request, body: dict = BODY):
+        admin_client(request)
+        return installer.use(model_id, body.get("variant"))
+
+    @app.delete("/admin/models/{model_id}/variants/{variant}")
+    def admin_remove_variant(model_id: str, variant: str, request: Request):
+        admin_client(request)
+        return installer.remove(model_id, variant, request.query_params.get("include_shared") == "true")
 
     @app.delete("/admin/models/{model_id}/install", status_code=204)
     def admin_cancel_install(model_id: str, request: Request):
@@ -410,6 +445,13 @@ def create_app(cfg: Config, installer: InstallManager | None = None) -> FastAPI:
             job_id = new_id("job")
             jobdir = scheduler.job_dir(job_id)
             jobdir.mkdir(parents=True, exist_ok=True)
+            try:
+                own_inputs(jobdir, resolved)
+            except OSError as err:
+                shutil.rmtree(jobdir, ignore_errors=True)  # no job row yet: nothing else would ever remove it
+                if isinstance(err, FileNotFoundError):  # the upload expired between the check above and here
+                    raise not_found("an upload expired while the job was being created; upload it again") from err
+                raise
             (jobdir / "request.json").write_text(
                 json.dumps({
                     "task": task, "model": model_id, "variant": mc.variant, "prompt": prompt, "params": accepted,

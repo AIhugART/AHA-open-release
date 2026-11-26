@@ -10,7 +10,8 @@ dependencies = [
   "transformers==5.17.0",
   "accelerate==1.15.0",
   "peft==0.22.0",  # LoRA adapters (diffusers' LoRA loader needs it)
-  "bitsandbytes==0.50.2",
+  "bitsandbytes==0.50.2",  # the `int8` variant (community bitsandbytes build); the ConvRot variants do not use it
+  "comfy-kitchen==0.2.42",  # Apache-2.0: the ConvRot kernels the ConvRot variants build on; not ComfyUI
   "huggingface-hub==1.32.0",
   "tokenizers==0.23.2",
   "safetensors==0.8.0",

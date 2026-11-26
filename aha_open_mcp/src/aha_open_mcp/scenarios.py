@@ -3,7 +3,7 @@ reason; it is never skipped silently (a loader that quietly `continue`s past a b
 without anyone noticing).
 
 A scenario runs a few steps against a target and then asserts over the CONTEXT the steps filled in: `job`, `submit`,
-`probe`, `image`, `job_id`, `upload_id`."""
+`probe`, `image`, `video`, `job_id`, `upload_id`."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ SIDE_EFFECTS = {"none", "reads_only", "creates_job", "uploads_file", "cancels_jo
 PRECONDITIONS = {
     "fake_worker_markers": "the prompt contains a marker word that only the FAKE worker understands (workers/fake/worker.py); a real model would just draw it",
     "real_model_installed": "the model is installed and its weights are on disk (`aha-open models list` says ready); loading it takes GPU and RAM",
+    "sized_video_sandbox": "the sandbox was started with sized_video=true, which adds the synthetic model example-video-sized (exact sizes, a frame grid, steps: the shape of MiniMax H3's declaration)",
 }
 
 # What each step writes into the context (used to check, before anything runs, that every assertion reads something that exists).
@@ -39,6 +40,7 @@ PRODUCES = {
     "run_cancel": {"job"},
     "probe_v1": {"probe"},
     "check_result_image": {"image"},
+    "check_result_video": {"video"},
 }
 OPS = ("eq", "ne", "gt", "ge", "lt", "le", "in", "exists", "absent", "len_eq")
 VAR = re.compile(r"\$\{([a-z_][a-z0-9_]*)\}")
@@ -235,7 +237,7 @@ def run_step(tool: str, args: dict, ctx: dict, target: Target) -> str:
 
     if tool == "run_upload":
         w, h = args["synthetic_png"]
-        ctx["upload_id"] = jobs.upload(target, jobs.synthetic_png(int(w), int(h)), args.get("media_type", "image/png"))
+        ctx["upload_id"] = jobs.upload(target, jobs.synthetic_png(int(w), int(h), tuple(args.get("rgb", (0x20, 0x40, 0xA0)))), args.get("media_type", "image/png"))
         return f"upload_id={ctx['upload_id']}"
     if tool == "run_job":
         ctx["submit"] = jobs.submit(target, args["body"])
@@ -246,7 +248,7 @@ def run_step(tool: str, args: dict, ctx: dict, target: Target) -> str:
         return f"HTTP {ctx['submit']['http_status']}" + (f" job_id={ctx['job_id']}" if "job_id" in ctx else f" refused: {ctx['submit']['error']['code']}")
     if tool == "wait_job":
         until = tuple(args["until"]) if args.get("until") else jobs.TERMINAL
-        ctx["job"] = jobs.wait(target, job_id(), float(args.get("timeout_s", 60)), until)
+        ctx["job"] = jobs.wait(target, job_id(), float(args.get("timeout_s", 60)), until, int(args.get("min_step", 0)))
         return f"status={ctx['job']['status']}" + (" (TIMED OUT)" if ctx["job"].get("timed_out") else "")
     if tool == "run_cancel":
         ctx["job"] = jobs.cancel(target, job_id())
@@ -257,6 +259,12 @@ def run_step(tool: str, args: dict, ctx: dict, target: Target) -> str:
     if tool == "check_result_image":
         ctx["image"] = jobs.check_result_image(target, job_id(), int(args.get("index", 0)))
         return "fetched" if ctx["image"].get("fetched") else f"not fetched: HTTP {ctx['image'].get('http_status')}"
+    if tool == "check_result_video":
+        ctx["video"] = jobs.check_result_video(target, job_id(), int(args.get("index", 0)))
+        v = ctx["video"]
+        if not v.get("fetched"):
+            return f"not fetched: HTTP {v.get('http_status')}"
+        return f"{v['width']}x{v['height']}, {v['frames']} frames, {v['fps']} fps" if v.get("has_video_track") else f"not a usable mp4: {v.get('parse_error')}"
     raise TargetError(f"unknown step tool {tool}")
 
 
@@ -277,7 +285,7 @@ def execute(sc: Scenario, target: Target, overrides: dict | None = None) -> dict
             break  # later steps would run on a context that does not exist
     checks = [check(ctx, a) for a in sc.asserts]
     facts = {}
-    for name, path in (("result_sha256", "image.sha256"), ("job_status", "job.status"), ("error_code", "job.error.code")):
+    for name, path in (("result_sha256", "image.sha256"), ("video_sha256", "video.sha256"), ("job_status", "job.status"), ("error_code", "job.error.code")):
         found, value = lookup(ctx, path)
         if found:
             facts[name] = value

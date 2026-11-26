@@ -1,0 +1,24 @@
+id: cancel_real_video_h3
+title: "A real MiniMax H3 job that is cancelled in the middle of sampling ends cancelled, never has a result, and the GPU is given back"
+covers: "tests/test_minimax_worker_real.py::test_cancel_stops_the_job_at_the_next_step_and_leaves_no_video"
+target: sandbox
+requires_worker: minimax_h3
+preconditions: [real_model_installed]
+side_effects: [creates_job, cancels_job, uses_gpu, loads_model]
+vars: {prompt: "a lighthouse on a cliff at sunset, waves crashing on the rocks"}
+steps:
+  - tool: run_job
+    args: {body: {task: video.generate, model: minimax-h3-fl2va, prompt: "${prompt}", params: {seed: 1, short_edge: 352}}}
+  - tool: wait_job  # in the middle of sampling, not while the model is still loading
+    args: {until: [running], min_step: 2, timeout_s: 600}
+  - tool: run_cancel
+  - tool: wait_job
+    args: {timeout_s: 120}
+  - tool: check_result_video
+assert:
+  - {path: submit.http_status, op: eq, value: 202}
+  - {path: job.status, op: eq, value: cancelled}
+  - {path: job.progress.step, op: ge, value: 2}
+  - {path: job.results, op: len_eq, value: 0}
+  - {path: video.fetched, op: eq, value: false}
+  - {path: video.http_status, op: eq, value: 409}

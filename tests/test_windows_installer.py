@@ -271,3 +271,10 @@ def test_other_failures_are_not_explained_as_the_network():
     disk = "error: failed to write to cache: There is not enough space on the disk. (os error 112)"
     assert not any(marker in disk.lower() for marker in network_markers())
     assert not any(marker in "error: no matching distribution found for aha-open[download]==9.9.9".lower() for marker in network_markers())
+
+
+def test_the_smoke_expects_exactly_the_models_the_web_page_can_install():
+    """The smoke once still expected only Qwen after MiniMax H3 was added, and failed at the end of a build."""
+    from aha_open.install import INSTALLABLE
+
+    assert b.WEB_MODELS == [model_id for model_id, plan in INSTALLABLE.items() if plan.get("web", True)]

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aha-open"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Open-source service that runs open image/video models behind the neutral /v1 API"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -39,7 +39,8 @@ aha_open = ["ui/*"]
 [tool.pytest.ini_options]
 testpaths = ["conformance", "tests"]
 markers = ["gpu: needs a real GPU and model weights (skipped by default)"]
-addopts = "-m 'not gpu'"
+pythonpath = ["tests"]
+addopts = "-m 'not gpu' -p no_real_downloads"
 
 [tool.ruff]
 line-length = 110

@@ -112,7 +112,7 @@ def _run_install(tmp_path, monkeypatch, record_record: list | None = None) -> li
 
     monkeypatch.setattr(install, "_download", fake_download)
     assert main(["--data-dir", str(tmp_path), "init"]) == 0
-    assert main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--accept-license", "qwen-research", "--skip-env"]) == 0
+    assert main(["--data-dir", str(tmp_path), "models", "install", "qwen-image-2.1", "--variant", "int8", "--accept-license", "qwen-research", "--skip-env"]) == 0
     return started
 
 

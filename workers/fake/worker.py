@@ -3,7 +3,8 @@ so the gateway and the conformance suite can be exercised end to end without a m
 
 Prompt markers (tests only) make it misbehave on purpose:
   __fail_oom  gpu_out_of_memory     __fail  generation_failed     __slow  200 steps (time to cancel)
-  __wrongsize PNG of the wrong size __ignorecancel  never honours cancel     __crash  dies mid-job
+  __wrongsize PNG (or video) of the wrong size   __nosize  a sized video that does not report its size
+  __ignorecancel  never honours cancel     __crash  dies mid-job
   __crash_native  dies the way a real native crash does (access violation / SIGSEGV)
 Environment (tests only): AHA_FAKE_CRASH_ON_LOAD=native  dies natively while loading the model.
 """
@@ -104,7 +105,11 @@ def run(msg: dict) -> None:
         if msg["task"].startswith("video"):
             name = f"out_{index}.mp4"
             (jobdir / name).write_bytes(fake_mp4(seed + index))
-            outputs.append({"file": name, "kind": "video", "media_type": "video/mp4", "duration_s": params.get("duration_s", 1), "fps": 8, "has_audio": False})
+            video = {"file": name, "kind": "video", "media_type": "video/mp4", "duration_s": params.get("duration_s", 1), "fps": 8, "has_audio": False}
+            if "width" in params and "__nosize" not in prompt:  # a model with exact sizes says what it made, like the MiniMax worker
+                video["width"] = params["width"] + (1 if "__wrongsize" in prompt else 0)
+                video["height"] = params["height"]
+            outputs.append(video)
         else:
             w, h = params["width"], params["height"]
             if "__wrongsize" in prompt:

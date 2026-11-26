@@ -6,9 +6,9 @@
 chúng qua một API HTTP chuẩn (`/v1`). Ứng dụng client đầu tiên là **AHA Studio**: AHA Studio gửi yêu cầu tạo ảnh hoặc
 video tới AHA open và nhận kết quả về kho của nó, về Photoshop (AHA Paint), Premiere (AHA Clip) hoặc AHA Workflow.
 
-> **Trạng thái (2026-11-23):** chưa có bản phát hành. Gateway `/v1` + bộ kiểm hợp chuẩn đã có (qua test với worker giả);
-> worker Qwen-Image-2.1 và giao diện web `/ui/` đã viết; MiniMax H3 hoãn. Mức bằng chứng từng phần: xem bảng trạng thái
-> trong [plan/2026-11-22_aha_open_plan.md](plan/2026-11-22_aha_open_plan.md) §3.
+> **Trạng thái (2026-11-26):** bản pre-release `0.1.0.dev2`, có trình cài Windows. Đã chạy thật trên một máy (RTX 3090 Ti
+> 24 GiB, Windows): ảnh với Qwen-Image-2.1 và video với MiniMax H3 qua gateway. **Chưa thử:** hồ sơ `lan` từ máy thứ hai và
+> hồ sơ `internet` (cần tài khoản Cloudflare thật). Mức bằng chứng từng phần: [docs/05_models.md](docs/vi/05_models.md) §3.
 
 ## Bắt đầu nhanh trên Windows (trình cài)
 
@@ -16,7 +16,7 @@ video tới AHA open và nhận kết quả về kho của nó, về Photoshop (
    bản pre-release), so SHA-256 của file với `SHA256SUMS`. Trình cài **chưa ký số** nên Windows SmartScreen có thể cảnh báo lần đầu.
 2. Chạy file (khoảng 16 MiB, không cần quyền admin; lần đầu cần internet để tải Python). Rồi Start menu ▸ **AHA open**: gateway chạy nền và
    trang web mở ra.
-3. Trên trang, tick ô đồng ý giấy phép rồi bấm **Download model** (Qwen-Image-2.1 INT8, khoảng 18 GB; chỉ dùng nghiên cứu/đánh giá — đọc giấy phép
+3. Trên trang, tick ô đồng ý giấy phép rồi bấm **Download model** (Qwen-Image-2.1, biến thể hợp GPU của bạn, khoảng 17 GB; chỉ dùng nghiên cứu/đánh giá — đọc giấy phép
    trang hiển thị). Cần GPU NVIDIA từ khoảng 10 GiB VRAM và khoảng 25 GB ổ đĩa trống.
 
 Đã thử thật trên một máy (RTX 3090 Ti, Windows 11): cài, tải model qua trang, sinh ảnh chuẩn (cùng byte với lần đo trước), gỡ cài. **Chưa thử:**
@@ -27,12 +27,12 @@ hộp thoại cài tương tác, cảnh báo SmartScreen, máy chưa có Python.
 ```bash
 uv sync --extra dev --extra download
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research   # bản INT8, ~18 GB
+aha-open models install qwen-image-2.1 --accept-license qwen-research   # biến thể hợp GPU của bạn (~17 GB); xem `models list`
 aha-open serve                                                          # nghe 127.0.0.1:8890
 aha-open open                                                           # mở trang web, không cần dán token
 ```
 
-Qwen-Image-2.1 chỉ cung cấp **bản INT8** (~18 GB đĩa, ~9,5 GiB VRAM ở 1024², hợp GPU 12–24 GB); bản BF16 đầy đủ không được hỗ trợ.
+Qwen-Image-2.1 có **bốn biến thể lượng tử hoá** để chọn theo máy — `int8`, `int8-convrot`, `mixed-p010`, `mixed-p015` (15–18 GB đĩa, 8–10 GiB VRAM ở 1024², hợp GPU 12–24 GB; `aha-open models list` cho biết biến thể nào vừa máy và đã cài, `models use` / `models remove` để chuyển và xoá); bản BF16 đầy đủ không được hỗ trợ.
 
 **LoRA:** `aha-open loras add my-style.safetensors --name "My style" --trigger mystyle` — file được kiểm (chỉ safetensors) rồi
 hiện trong manifest/`/ui/`; client chọn bằng `params.loras`.
@@ -60,14 +60,11 @@ Trên máy chạy AHA open, trang web cũng thêm/gỡ file LoRA được (**Man
 |---|---|
 | [docs/00_index.md](docs/vi/00_index.md) | Bản đồ tài liệu |
 | [docs/01_overview.md](docs/vi/01_overview.md) | AHA open là gì, ranh giới, nguyên tắc |
-| [docs/02_aha_studio.md](docs/vi/02_aha_studio.md) | AHA Studio là gì và cách AHA Studio kết nối AHA open |
 | [docs/03_api_v1.md](docs/vi/03_api_v1.md) | Đặc tả API `/v1` |
 | [docs/04_architecture.md](docs/vi/04_architecture.md) | Gateway, worker, hàng đợi, quản lý VRAM |
 | [docs/05_models.md](docs/vi/05_models.md) | Qwen-Image-2.1, MiniMax H3: khả năng, phần cứng, giấy phép |
 | [docs/06_deployment.md](docs/vi/06_deployment.md) | Cài đặt cho `local`, `lan`, `internet` (Cloudflare Tunnel) |
 | [docs/07_security.md](docs/vi/07_security.md) | Mô hình đe doạ và luật bảo mật |
-| [plan/2026-11-22_aha_open_plan.md](plan/2026-11-22_aha_open_plan.md) | Kế hoạch, RCA 3 vòng, quyết định |
-| [CLAUDE.md](CLAUDE.md) | Nguyên tắc làm việc (RCA, mức bằng chứng, test, bảo mật) |
 
 ## Giấy phép
 

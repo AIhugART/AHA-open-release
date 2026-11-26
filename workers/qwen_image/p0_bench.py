@@ -20,8 +20,16 @@ from pathlib import Path
 import psutil
 import torch
 
-REF = Path(__file__).resolve().parents[2] / "reference" / "Qwen-Image-2.1"
-PATHS = {"int8": REF / "Image21-INT8"}
+def _data_dir() -> Path:  # same rule as aha_open.config.default_data_dir; this tool runs in the worker env, which cannot import aha_open
+    import os
+    if env := os.environ.get("AHA_OPEN_DATA_DIR"):
+        return Path(env)
+    if sys.platform == "win32":
+        return Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "AHA-open"
+    return Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "aha-open"
+
+
+PATHS = {"int8": _data_dir() / "models" / "qwen-image-2.1" / "int8"}  # where `aha-open models install` puts it
 PROMPT = 'A neon sign reading "CREATE WITH LIGHT", rainy night'  # same prompt as the upstream INT8 README
 
 

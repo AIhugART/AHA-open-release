@@ -11,6 +11,7 @@ computed from disk on every request (catalog.model_state), so the manifest chang
 from __future__ import annotations
 
 import importlib.util
+import math
 import os
 import subprocess
 import sys
@@ -20,11 +21,19 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
-from .catalog import CATALOG, detect_gpus, model_state, weights_dir
+from .catalog import CATALOG, detect_gpus, model_state, variant_installed, variant_public, weights_dir
 from .config import Config, ModelConfig, load
 from .errors import ApiError, invalid, not_found
-from .hardware import detect_ram_gib, free_disk_gib, recommend_variant
-from .install import INSTALLABLE, PROGRESS_ENV, PROGRESS_PREFIX, uv_executable
+from .hardware import detect_ram_gib, fit_by_tier, fit_for, free_disk_gib, gpu_budget_mib, recommend_variant_for
+from .install import (
+    INSTALLABLE,
+    PROGRESS_ENV,
+    PROGRESS_PREFIX,
+    _missing_gib,
+    remove_variant,
+    use_variant,
+    uv_executable,
+)
 from .util import iso, now
 
 GIB = 2**30
@@ -40,6 +49,9 @@ PHASES = (
     ("Installed ", "finishing"),
 )
 # Output of a download or `uv` that could not reach the network. Matched on the tail of the child's output.
+# The machine reached the server but does not trust what it answered with: a company proxy, an antivirus that scans HTTPS, or a
+# captive portal. Checked BEFORE the network markers, because Python words it as a ConnectError / SSLError too (observed 2026-11-25).
+CERTIFICATE_MARKERS = ("certificate_verify_failed", "certificate verify failed", "self-signed certificate", "unable to get local issuer")
 NETWORK_MARKERS = (
     "connectionerror", "max retries exceeded", "getaddrinfo", "name resolution", "timed out", "connection reset",
     "sslerror", "proxyerror", "network is unreachable", "error sending request", "dns error", "failed to fetch",
@@ -103,6 +115,14 @@ def classify_failure(returncode: int, tail: list[str], data_dir: Path) -> dict:
     """One sentence the person can act on, and a code for the cause (docs/04_architecture.md)."""
     text = "\n".join(tail).lower()
     last_error = next((line for line in reversed(tail) if line.startswith("error:")), "")
+    if any(marker in text for marker in CERTIFICATE_MARKERS):
+        return {
+            "code": "certificate_untrusted",
+            "message": "This computer does not trust the certificate the download server presented. A company proxy, an antivirus that "
+                       "scans secure connections, or a captive portal is usually the cause. Ask the person who runs the network for its "
+                       "root certificate and point the SSL_CERT_FILE environment variable at it, or download on another network; "
+                       "what was already downloaded is kept.",
+        }
     if any(marker in text for marker in NETWORK_MARKERS):
         return {
             "code": "network_unreachable",
@@ -142,8 +162,10 @@ class InstallManager:
     def models(self) -> list[dict]:
         out = []
         for model_id, plan in INSTALLABLE.items():
+            if not plan.get("web", True):  # a model that can only be installed from the command line
+                continue
             spec = CATALOG[model_id]
-            variant, _ = self._variant()
+            variant, _ = self._variant(model_id)
             mc = self.cfg.model(model_id) or ModelConfig(id=model_id, worker=spec.family, variant=variant or "")
             state, detail = model_state(self.cfg, mc, spec)
             if detail:  # "weights not found at <path>": the page shows it, and it must not spell out the data folder
@@ -158,8 +180,12 @@ class InstallManager:
                 "license": {
                     "key": plan["license_key"], "name": lic.get("name"), "commercial_use": lic.get("commercial_use"),
                     "notes": lic.get("notes", ""), "url": lic.get("url", ""),
+                    "excluded_territories": list(lic.get("excluded_territories", [])),
                 },
-                "disk_gib": next(iter(plan["variants"].values()))["disk_gib"],
+                # a model whose licence excludes territories needs the person to confirm they are not in one (its own checkbox)
+                "requires_territory_confirmation": bool(plan.get("territory")),
+                "disk_gib": self._disk_gib(model_id, plan, variant),
+                "variants": self._variants(model_id, plan, mc, variant),
                 "blocker": blocker,
                 "install": self.status(model_id),
             })
@@ -186,26 +212,35 @@ class InstallManager:
             }
 
     # ------------------------------------------------------------------ start / cancel
-    def start(self, model_id: str, accept_license: object) -> dict:
+    def start(self, model_id: str, accept_license: object, confirm_territory: object = False, variant: object = None) -> dict:
         plan = INSTALLABLE.get(model_id)
-        if plan is None or CATALOG.get(model_id) is None:
+        if plan is None or CATALOG.get(model_id) is None or not plan.get("web", True):
             raise not_found("this model cannot be installed from here")
         if accept_license != plan["license_key"]:
             raise invalid("the licence has not been accepted: send accept_license with the licence key shown on the page")
+        if plan.get("territory") and confirm_territory is not True:  # the same refusal the command line gives without --confirm-territory
+            excluded = ", ".join(CATALOG[model_id].license.get("excluded_territories", []))
+            raise invalid(f"the territory has not been confirmed: this licence does not allow use in {excluded}; "
+                          "send confirm_territory: true only if you are not in one of them")
+        if variant is not None and (not isinstance(variant, str) or variant not in plan["variants"]):
+            raise invalid(f"variant must be one of: {', '.join(plan['variants'])}")
         with self._lock:
             if self._run and self._run.state == "running":
                 raise ApiError(409, "install_running", "a model is being installed already; wait for it to finish or cancel it")
             spec = CATALOG[model_id]
-            variant, _ = self._variant()
+            chosen = variant  # None = the best one for this machine
+            variant = chosen or self._variant(model_id)[0]
             mc = self.cfg.model(model_id) or ModelConfig(id=model_id, worker=spec.family, variant=variant or "")
-            if model_state(self.cfg, mc, spec)[0] == "ready":
-                raise ApiError(409, "already_installed", f"{spec.display_name} is already installed")
-            blocker = self._blocker(model_id)
+            # no variant named: "installed" is what it always was - the model works as configured. A variant named: that one is on disk.
+            installed = (model_state(self.cfg, mc, spec)[0] == "ready") if (chosen is None or mc.variant == chosen) else variant_installed(self.cfg, spec, chosen)
+            if installed:
+                raise ApiError(409, "already_installed", f"{spec.display_name} ({variant}) is already installed")
+            blocker = self._blocker(model_id, chosen)
             if blocker:
                 raise ApiError(409, blocker["code"], blocker["message"])
             variant = variant or next(iter(plan["variants"]))
             target = weights_dir(self.cfg, ModelConfig(id=model_id, worker=spec.family, variant=variant))
-            run = _Run(model_id, target, int(plan["variants"][variant]["disk_gib"] * GIB))
+            run = _Run(model_id, target, int(self._disk_gib(model_id, plan, variant) * GIB))
             env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", "AHA_OPEN_UV": uv_executable() or "",
                    PROGRESS_ENV: "lines"}
             kwargs: dict = {}
@@ -213,8 +248,13 @@ class InstallManager:
                 kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
             else:
                 kwargs["start_new_session"] = True
+            command = self._command(model_id, plan["license_key"])
+            if plan.get("territory"):
+                command = [*command, "--confirm-territory"]  # confirmed above; the command line asks for it again, so it is passed on
+            if chosen:
+                command = [*command, "--variant", chosen]
             run.proc = subprocess.Popen(  # cwd: see launcher.start - `python -m` must not pick up an `aha_open` from the current folder
-                self._command(model_id, plan["license_key"]), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(self.cfg.data_dir), **kwargs,
             )
             self._run = run
@@ -231,6 +271,34 @@ class InstallManager:
         _kill_tree(proc)
         return True
 
+    def attach_scheduler(self, scheduler) -> None:
+        """The scheduler knows which jobs are waiting or running: switching or deleting a variant must not cut one off."""
+        self._scheduler = scheduler
+
+    def use(self, model_id: str, variant: object) -> dict:
+        """Select an installed variant. The next job loads it (the worker that holds the old one is released when no job needs it)."""
+        spec = self._variant_model(model_id, variant)
+        self._guard(model_id)
+        done, message = use_variant(self.cfg, model_id, variant)
+        if not done:
+            raise ApiError(409, "variant_not_installed", message[0].upper() + message[1:] + ".")
+        if self._scheduler is not None:
+            self._scheduler.release(model_id)
+        return self._entry(model_id, spec)
+
+    def remove(self, model_id: str, variant: object, include_shared: bool = False) -> dict:
+        """Delete one variant's files (never while a job of this model is waiting or running, and never outside the models folder)."""
+        spec = self._variant_model(model_id, variant)
+        self._guard(model_id)
+        if self._scheduler is not None:
+            self._scheduler.release(model_id)  # a loaded worker holds the weights open: Windows would refuse to delete them
+        done, message = remove_variant(self.cfg, model_id, variant, include_shared=include_shared)
+        if not done:
+            raise not_found(message[0].upper() + message[1:] + ".")
+        offer = "--include-shared" in message  # the last variant went and its shared files are still there: the page offers to remove them too
+        message = message.split(": add --include-shared")[0] if offer else message  # a command-line flag means nothing on the page
+        return {**self._entry(model_id, spec), "message": message.replace(str(self.cfg.data_dir), "<data folder>"), "shared_offer": offer}
+
     def shutdown(self) -> None:
         """The gateway is stopping: do not leave a download running with nobody to report to."""
         with self._lock:
@@ -242,14 +310,73 @@ class InstallManager:
             _kill_tree(proc)
 
     # ------------------------------------------------------------------ internals
-    def _variant(self) -> tuple[str | None, str]:
-        gpus = detect_gpus()
-        return recommend_variant(gpus[0]["memory_total_mib"] if gpus else None, detect_ram_gib())
+    _scheduler = None
 
-    def _blocker(self, model_id: str) -> dict | None:
+    def _variant_model(self, model_id: str, variant: object):
+        spec = CATALOG.get(model_id)
+        if spec is None or model_id not in INSTALLABLE or not spec.variants:
+            raise not_found("this model has no variants to choose from")
+        if not isinstance(variant, str) or variant not in spec.variants:
+            raise invalid(f"variant must be one of: {', '.join(spec.variants)}")
+        return spec
+
+    def _guard(self, model_id: str) -> None:
+        with self._lock:
+            if self._run and self._run.state == "running":
+                raise ApiError(409, "install_running", "a model is being installed; wait for it to finish or cancel it first")
+        if self._scheduler is not None and self._scheduler.busy(model_id):
+            raise ApiError(409, "model_busy", "a job of this model is waiting or running; wait for it to finish or cancel it, then try again")
+
+    def _entry(self, model_id: str, spec) -> dict:
+        return next(m for m in self.models() if m["id"] == model_id)
+
+    def _variants(self, model_id: str, plan: dict, mc: ModelConfig, suggestion: str | None) -> list[dict]:
+        """Every variant the model offers, for the page: what it costs, whether it fits here, whether it is on disk, which one runs."""
+        spec = CATALOG[model_id]
+        gpus = detect_gpus()
+        gpu_mib = gpu_budget_mib(self.cfg, gpus[0] if gpus else None)
+        out = []
+        for name, info in spec.variants.items():
+            if name not in plan["variants"]:
+                continue
+            installed = variant_installed(self.cfg, spec, name)
+            out.append({
+                "name": name, **variant_public(info), "own_gib": self._own_gib(spec, plan, name),
+                "download_gib": 0 if installed else self._disk_gib(model_id, plan, name),  # what is still to fetch: shared files already here do not count
+                "fit": fit_for(info, gpu_mib), **({"fit_by_tier": t} if (t := fit_by_tier(info, gpu_mib)) else {}), "installed": installed,
+                "selected": name == mc.variant, "recommended": name == suggestion,
+            })
+        return out
+
+    @staticmethod
+    def _own_gib(spec, plan: dict, name: str) -> float:
+        """What deleting this variant frees: its own transformer file for a ConvRot build (the text encoder and VAE are shared), the whole folder otherwise."""
+        info = plan["variants"][name]
+        own = spec.variants[name].get("files", ())
+        if not own or "parts" not in info:
+            return float(info["disk_gib"])
+        sizes = {f"{p['subdir']}/{n}" if p["subdir"] else n: size for p in info["parts"] for n, (size, _) in p["files"].items()}
+        return round(sum(sizes.get(f, 0) for f in own) / GIB, 1)
+
+    def _variant(self, model_id: str) -> tuple[str | None, str]:
+        """The variant for this machine, and the sentence why not: the rule is the model's own, the one the command line uses."""
+        gpus = detect_gpus()
+        return recommend_variant_for(model_id, gpu_budget_mib(self.cfg, gpus[0] if gpus else None), detect_ram_gib())
+
+    def _disk_gib(self, model_id: str, plan: dict, variant: str | None) -> int:
+        """GB still to download. For a model made of several pinned files only those not on disk yet count: the reference model shares
+        a folder with the text model, so a machine that has the text model needs about 14 GB, not 61."""
+        info = plan["variants"][variant or next(iter(plan["variants"]))]
+        if "parts" not in info:
+            return info["disk_gib"]
+        spec = CATALOG[model_id]
+        target = weights_dir(self.cfg, ModelConfig(id=model_id, worker=spec.family, variant=variant or ""))
+        return max(1, math.ceil(min(info["disk_gib"], _missing_gib(info["parts"], target))))
+
+    def _blocker(self, model_id: str, chosen: str | None = None) -> dict | None:
         """Why an install would fail, checked BEFORE starting, with the same functions the command line uses."""
         plan, spec = INSTALLABLE[model_id], CATALOG[model_id]
-        variant, reason = self._variant()
+        variant, reason = (chosen, "") if chosen else self._variant(model_id)
         if variant is None:
             return {"code": "unsupported_hardware", "message": reason[0].upper() + reason[1:] + "."}
         if uv_executable() is None:
@@ -261,8 +388,10 @@ class InstallManager:
         info = plan["variants"][variant]
         target = weights_dir(self.cfg, ModelConfig(id=model_id, worker=spec.family, variant=variant))
         free = free_disk_gib(target)
-        if free < info["disk_gib"] * 1.1 and not (target / "model_index.json").exists():
-            return {"code": "not_enough_disk", "message": f"{spec.display_name} needs about {info['disk_gib']} GB of free disk "
+        need_gib = self._disk_gib(model_id, plan, variant)
+        files_missing = "parts" in info and _missing_gib(info["parts"], target) > 0  # the text model is here, the reference file is not
+        if free < need_gib * 1.1 and (files_missing or not (target / "model_index.json").exists()):
+            return {"code": "not_enough_disk", "message": f"{spec.display_name} needs about {need_gib} GB of free disk "
                     f"(plus room for its environment) but only {free:.0f} GB are free on that drive. Free some space, then try again."}
         return None
 

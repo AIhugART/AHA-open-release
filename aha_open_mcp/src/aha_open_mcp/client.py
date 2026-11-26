@@ -37,7 +37,8 @@ def project_manifest(d: dict) -> dict:
 def project_job(d: dict) -> dict:
     return {
         **_pick(d, ("id", "status", "progress", "queue_position", "created_at")),
-        "results": [_pick(r, ("kind", "media_type", "width", "height", "bytes", "sha256")) for r in d.get("results", [])],
+        # an allowlist: only fields known to be safe to show. A video result also says how long it is, how fast, and whether it has sound.
+        "results": [_pick(r, ("kind", "media_type", "width", "height", "bytes", "sha256", "duration_s", "fps", "has_audio")) for r in d.get("results", [])],
         "error": _pick(d["error"], ("code", "message")) if isinstance(d.get("error"), dict) else None,
     }
 

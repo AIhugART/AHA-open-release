@@ -28,8 +28,8 @@ from aha_open.config import Config, ModelConfig, render
 
 mode, data_dir, model = sys.argv[1:4]
 data = Path(data_dir)
-target = data / "models" / model / "int8"
-print("Installing int8: test machine", flush=True)
+target = data / "models" / model / "convrot"  # the folder the best variant on this machine installs into
+print("Installing int8-convrot: test machine", flush=True)
 if mode in ("progress", "progress_early", "progress_fail", "progress_exit"):
     # hf-xet keeps the bytes in its own cache, so the weights folder stays EMPTY while the download runs: only the count the
     # downloader reports can tell how far it got
@@ -62,9 +62,9 @@ if mode == "hang":
     time.sleep(120)
 print("Creating the qwen_image worker environment in V", flush=True)
 cfg = Config(data_dir=data, models=[ModelConfig(id="example-image", worker="fake"), ModelConfig(id="example-video", worker="fake"),
-                                    ModelConfig(id=model, worker="qwen_image", variant="int8")])
+                                    ModelConfig(id=model, worker="qwen_image", variant="int8-convrot")])
 (data / "config.toml").write_text(render(cfg), encoding="utf-8")
-print("Installed Qwen-Image-2.1 (int8).", flush=True)
+print("Installed Qwen-Image-2.1 (int8-convrot).", flush=True)
 '''
 
 
@@ -153,9 +153,10 @@ def wait_gone(pid: int, why: str) -> None:
 def test_the_list_offers_qwen_with_its_licence_and_nothing_blocking(make_gateway, fake_install, machine):
     _, api, _ = start_page(make_gateway, fake_install)
     models = api.get("/admin/models").json()["models"]
-    assert [m["id"] for m in models] == ["qwen-image-2.1"]
+    assert [m["id"] for m in models] == ["qwen-image-2.1", "minimax-h3-fl2va", "minimax-h3-ref2va"]
     qwen = models[0]
-    assert qwen["state"] == "not_installed" and qwen["blocker"] is None and qwen["disk_gib"] == 18
+    assert qwen["state"] == "not_installed" and qwen["blocker"] is None and qwen["disk_gib"] == 17  # INT8 ConvRot: the best variant that fits a 24 GiB GPU
+    assert qwen["requires_territory_confirmation"] is False and qwen["license"]["excluded_territories"] == []
     assert qwen["license"]["key"] == KEY and qwen["license"]["commercial_use"] == "not_allowed"
     assert qwen["license"]["name"] and qwen["license"]["url"]
     assert qwen["install"]["state"] == "idle"
@@ -201,7 +202,7 @@ def test_progress_reports_bytes_that_are_really_on_disk(make_gateway, fake_insta
             break
         assert time.monotonic() < deadline, data
         time.sleep(0.2)
-    assert data["expected_bytes"] == 18 * 2**30 and data["state"] == "running"
+    assert data["expected_bytes"] == 17 * 2**30 and data["state"] == "running"
     assert api.delete(install_url()).status_code == 204
     wait_install(api, ("cancelled",))
 
@@ -236,7 +237,7 @@ def test_a_total_that_is_still_small_does_not_make_the_bar_jump_ahead(make_gatew
             break
         assert time.monotonic() < deadline, data
         time.sleep(0.1)
-    assert data["expected_bytes"] == 18 * 2**30  # the plan's size, not the early total of 20 MB
+    assert data["expected_bytes"] == 17 * 2**30  # the plan's size, not the early total of 20 MB
     api.delete(install_url())
     wait_install(api, ("cancelled",))
 
@@ -375,8 +376,158 @@ def test_the_internet_profile_has_no_install_page_even_through_the_tunnel_path(m
     assert not runs
 
 
+def use_url(model_id: str = "qwen-image-2.1") -> str:
+    return f"/admin/models/{model_id}/use"
+
+
+def variant_url(variant: str, model_id: str = "qwen-image-2.1") -> str:
+    return f"/admin/models/{model_id}/variants/{variant}"
+
+
+def test_the_list_shows_the_four_qwen_variants_with_cost_fit_and_what_is_installed(make_gateway, fake_install, machine):
+    _, api, _ = start_page(make_gateway, fake_install)
+    qwen = next(m for m in api.get("/admin/models").json()["models"] if m["id"] == "qwen-image-2.1")
+    names = [v["name"] for v in qwen["variants"]]
+    assert names == ["int8", "int8-convrot", "mixed-p010", "mixed-p015"]
+    assert [v["name"] for v in qwen["variants"] if v["recommended"]] == ["int8-convrot"]
+    assert all(v["fit"] == "fits" and v["installed"] is False and v["disk_gib"] > 0 for v in qwen["variants"]), qwen["variants"]
+    assert not {"folder", "files", "runtime"} & set(qwen["variants"][0])
+
+
+def test_the_variant_routes_need_the_token_the_local_host_and_the_local_profile(make_gateway, fake_install, machine):
+    """Negative security tests for choosing and deleting a variant: the same guard as installing."""
+    gw, _, runs = start_page(make_gateway, fake_install)
+    for token in (None, "aho_not-a-real-token"):
+        anon = Api(gw.base, token)
+        assert anon.post(use_url(), json={"variant": "int8"}).status_code == 401
+        assert anon.delete(variant_url("int8")).status_code == 401
+    token = gw.tokens["local"]
+    assert Api(gw.base, token, host="evil.example").post(use_url(), json={"variant": "int8"}).status_code == 403  # DNS rebinding
+    assert Api(gw.base, token, host="evil.example").delete(variant_url("int8")).status_code == 403
+    hostile = {"Origin": "https://evil.example"}
+    assert Api(gw.base, token).post(use_url(), headers=hostile, json={"variant": "int8"}).status_code == 403
+    assert Api(gw.base, token).delete(variant_url("int8"), headers=hostile).status_code == 403  # a web page on another site cannot delete 18 GB
+    assert not runs
+
+    factory, _ = fake_install
+    net = make_gateway(profile="internet", access_confirmed=True, hosts=["aha.example.com"], installer=factory, models=FAKE_MODELS)
+    remote = Api(net.base, new_client_token(net, "remote"), host="aha.example.com")
+    assert remote.post(use_url(), json={"variant": "int8"}).status_code == 404
+    assert remote.delete(variant_url("int8")).status_code == 404
+
+
+def test_choosing_a_variant_that_is_not_offered_or_not_installed_changes_nothing(make_gateway, fake_install, machine):
+    gw, api, runs = start_page(make_gateway, fake_install)
+    for body in ({}, {"variant": ""}, {"variant": "bf16"}, {"variant": 3}, {"variant": ["int8"]}):
+        assert api.post(use_url(), json=body).status_code == 400, body
+    missing = api.post(use_url(), json={"variant": "mixed-p015"})
+    assert missing.status_code == 409 and missing.json()["error"]["code"] == "variant_not_installed"
+    assert api.post(use_url("example-image"), json={"variant": "int8"}).status_code == 404  # the fake model has none
+    assert api.delete(variant_url("bf16")).status_code == 400
+    assert api.delete(variant_url("mixed-p015")).status_code == 404  # nothing there to delete
+    assert api.post(install_url(), json={"accept_license": KEY, "variant": "bf16"}).status_code == 400
+    assert not runs
+
+
 def test_classify_failure_never_includes_the_data_folder():
     data = Path("C:/secret/data")
     got = model_install.classify_failure(2, [f"error: cannot write {data}/x"], data)
     assert str(data) not in got["message"] and got["code"] == "install_failed"
     assert model_install.classify_failure(1, ["...", "getaddrinfo failed"], data)["code"] == "network_unreachable"
+
+
+# ---------------------------------------------------------------------------------------------- MiniMax H3 on the page
+
+
+H3 = "minimax-h3-fl2va"
+H3_REF = "minimax-h3-ref2va"
+H3_KEY = "minimax-h3"
+REF_FILE_GIB = 15093774276 / 2**30  # the one file the reference model adds to the text model's folder
+
+
+def test_the_list_says_which_licences_need_a_territory_confirmation_and_which_territories(make_gateway, fake_install, machine):
+    _, api, _ = start_page(make_gateway, fake_install)
+    models = {m["id"]: m for m in api.get("/admin/models").json()["models"]}
+    for model_id in (H3, H3_REF):
+        entry = models[model_id]
+        assert entry["requires_territory_confirmation"] is True
+        assert entry["license"]["key"] == H3_KEY and entry["license"]["excluded_territories"] == ["EU", "GB", "KR", "US"]
+        assert entry["blocker"] is None and entry["state"] == "not_installed"
+
+
+def test_the_disk_a_model_needs_counts_only_the_files_that_are_not_there_yet(make_gateway, fake_install, machine, monkeypatch):
+    """The reference model shares the text model's folder: with the text model installed it needs the one 14 GiB file, not 61 GB."""
+    _, api, _ = start_page(make_gateway, fake_install)
+    alone = {m["id"]: m["disk_gib"] for m in api.get("/admin/models").json()["models"]}
+    assert 44 <= alone[H3] <= 46 and 44 <= alone[H3_REF] <= 46  # nothing on disk: both need the encoder and the VAEs
+    real = model_install._missing_gib
+    monkeypatch.setattr(model_install, "_missing_gib",
+                        lambda parts, target: REF_FILE_GIB if any("Ref2VA" in n for p in parts for n in p["files"]) else 0.0)
+    shared = {m["id"]: m["disk_gib"] for m in api.get("/admin/models").json()["models"]}
+    assert shared[H3_REF] == 15 and shared[H3] == 1 and real is not model_install._missing_gib
+
+
+@pytest.mark.parametrize("model_id", [H3, H3_REF])
+@pytest.mark.parametrize("body", [
+    {"accept_license": H3_KEY},                                  # no confirmation at all
+    {"accept_license": H3_KEY, "confirm_territory": False},      # unticked
+    {"accept_license": H3_KEY, "confirm_territory": "yes"},      # only the boolean true counts
+    {"accept_license": H3_KEY, "confirm_territory": 1},
+])
+def test_a_licence_that_excludes_territories_is_refused_without_the_confirmation_and_nothing_starts(make_gateway, fake_install, machine, model_id, body):
+    _, api, runs = start_page(make_gateway, fake_install)
+    refused = api.post(install_url(model_id), json=body)
+    assert refused.status_code == 400 and refused.json()["error"]["code"] == "invalid_request"
+    assert "territory has not been confirmed" in refused.json()["error"]["message"] and "EU, GB, KR, US" in refused.json()["error"]["message"]
+    assert runs == [] and api.get(install_url(model_id)).json()["state"] == "idle"
+
+
+def test_the_licence_is_still_checked_first_and_a_model_without_territories_needs_no_confirmation(make_gateway, fake_install, machine):
+    _, api, runs = start_page(make_gateway, fake_install)
+    wrong = api.post(install_url(H3), json={"accept_license": "qwen-research", "confirm_territory": True})
+    assert wrong.status_code == 400 and "licence has not been accepted" in wrong.json()["error"]["message"] and runs == []
+    assert api.post(install_url(), json={"accept_license": KEY}).status_code == 202  # Qwen: no territory question
+
+
+def test_a_confirmed_install_passes_the_confirmation_on_to_the_command_that_installs(make_gateway, fake_install, machine, monkeypatch):
+    """One way to install: the page runs the same command as the terminal, which asks for --confirm-territory itself."""
+    real_popen, started = subprocess.Popen, []
+
+    def spy(argv, *args, **kwargs):
+        if any(str(a).endswith("fake_install.py") for a in argv):  # the install command, not the gateway's helpers (icacls, taskkill)
+            started.append(list(argv))
+        return real_popen(argv, *args, **kwargs)
+
+    monkeypatch.setattr(model_install.subprocess, "Popen", spy)
+    _, api, _ = start_page(make_gateway, fake_install)
+    assert api.post(install_url(H3), json={"accept_license": H3_KEY, "confirm_territory": True}).status_code == 202
+    assert api.post(install_url(), json={"accept_license": KEY}).status_code == 409  # one install at a time, whichever model
+    assert "--confirm-territory" in started[0] and H3 in started[0]
+    api.delete(install_url(H3))
+    assert api.post(install_url(), json={"accept_license": KEY}).status_code in (202, 409)
+    assert all("--confirm-territory" not in argv for argv in started[1:])  # a model without territories never gets the flag
+
+
+def test_a_gpu_too_small_for_minimax_blocks_it_with_its_own_sentence_and_leaves_qwen_alone(make_gateway, fake_install, machine):
+    machine["gpus"] = [{"index": 0, "name": "Small GPU", "memory_total_mib": 12288}]  # 12 GiB: enough for Qwen INT8, not for MiniMax H3
+    _, api, runs = start_page(make_gateway, fake_install)
+    models = {m["id"]: m for m in api.get("/admin/models").json()["models"]}
+    assert models["qwen-image-2.1"]["blocker"] is None
+    for model_id, needs in ((H3, "at least 16 GiB"), (H3_REF, "at least 18 GiB")):  # the reference model ran only on bigger cards
+        assert models[model_id]["blocker"]["code"] == "unsupported_hardware" and needs in models[model_id]["blocker"]["message"]
+        refused = api.post(install_url(model_id), json={"accept_license": H3_KEY, "confirm_territory": True})
+        assert refused.status_code == 409 and refused.json()["error"]["code"] == "unsupported_hardware"
+    assert runs == []
+
+
+def test_not_enough_disk_names_the_size_still_to_download_not_the_whole_model(make_gateway, fake_install, machine, monkeypatch):
+    monkeypatch.setattr(model_install, "_missing_gib",
+                        lambda parts, target: REF_FILE_GIB if any("Ref2VA" in n for p in parts for n in p["files"]) else 0.0)
+    machine["free"] = 10.0
+    _, api, runs = start_page(make_gateway, fake_install)
+    models = {m["id"]: m for m in api.get("/admin/models").json()["models"]}
+    assert models[H3_REF]["blocker"]["code"] == "not_enough_disk" and "about 15 GB" in models[H3_REF]["blocker"]["message"]
+    machine["free"] = 20.0  # 15 GB x 1.1 fits in 20 GB
+    again = {m["id"]: m for m in api.get("/admin/models").json()["models"]}
+    assert again[H3_REF]["blocker"] is None
+    assert runs == []

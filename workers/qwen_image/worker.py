@@ -1,9 +1,12 @@
 """Qwen-Image-2.1 worker. Runs inside its own virtual environment (pinned in pyproject.toml).
 
 Speaks the worker protocol of docs/04_architecture.md section 2 on stdin/stdout. Uses only public diffusers /
-transformers / bitsandbytes APIs; no code is copied from the Qwen or community repositories.
+transformers / bitsandbytes / comfy-kitchen APIs; no code is copied from the Qwen or community repositories.
 
-Memory plan: the INT8 model always uses model-level CPU offload (the full BF16 model is not offered).
+Four variants: `int8` (community bitsandbytes build, loaded by from_pretrained, LoRA through peft) and the ConvRot builds
+`int8-convrot`, `mixed-p010`, `mixed-p015` (qwen_models.py, LoRA through convrot_lora.py).
+
+Memory plan: every variant always uses model-level CPU offload (the full BF16 model is not offered).
 """
 
 from __future__ import annotations
@@ -146,12 +149,47 @@ def keep_int8_state_on_device(model) -> None:
         layer._aha_patched = True
 
 
-def load_pipeline(variant: str, weights: str, gpu: int):
+CONVROT_VARIANTS = ("int8-convrot", "mixed-p010", "mixed-p015")
+CONVROT_ENCODER = "comfyorg/text_encoders/qwen3vl_8b_int8_convrot.safetensors"  # where install.py puts it (tests tie the two together)
+
+
+def load_convrot_pipeline(weights: str, files: list[str], gpu: int):
+    """A ConvRot variant: transformer and text encoder built from their files (qwen_models.py), the rest from the shared folder.
+
+    Model-level CPU offload always: measured on a 24 GiB GPU, keeping everything resident peaked at 19.7-22.1 GiB and the
+    larger builds then spilled into system memory (49 s, then 66 s per image); with offload the peak is 8.2 GiB for all three.
+    """
     import torch
     from diffusers import QwenImage21Pipeline
 
+    from qwen_models import build_text_encoder, build_transformer
+
+    root = Path(weights)
+    if len(files) != 1:
+        raise ValueError(f"the gateway named {len(files)} transformer files for a ConvRot variant; exactly one is expected")
+    stage("load transformer: reading weights")
+    transformer = build_transformer(root / files[0], root / "transformer" / "config.json", "cpu")
+    stage("load text_encoder: reading weights")
+    text_encoder = build_text_encoder(root / CONVROT_ENCODER, root / "text_encoder", "cpu", with_vision=True)
+    stage("load pipeline: assembling")
+    pipe = QwenImage21Pipeline.from_pretrained(
+        str(root), transformer=transformer, text_encoder=text_encoder, dtype=torch.bfloat16, local_files_only=True
+    )
+    pipe._aha_runtime = "convrot"
+    stage("load pipeline: enabling model cpu offload")
+    pipe.enable_model_cpu_offload(gpu_id=gpu)
+    stage("load pipeline: ready")
+    return pipe, "model_cpu_offload"
+
+
+def load_pipeline(variant: str, weights: str, gpu: int, files: list[str] | None = None):
+    import torch
+    from diffusers import QwenImage21Pipeline
+
+    if variant in CONVROT_VARIANTS:
+        return load_convrot_pipeline(weights, list(files or []), gpu)
     if variant != "int8":
-        raise ValueError(f"unsupported variant {variant!r}: only int8 is offered")
+        raise ValueError(f"unsupported variant {variant!r}: offered are int8, {', '.join(CONVROT_VARIANTS)}")
     from diffusers import QwenImage21Transformer2DModel
     from transformers import Qwen3VLForConditionalGeneration
 
@@ -241,8 +279,13 @@ def apply_loras(pipe, loras: list[dict]) -> None:
     Adapters stay loaded between jobs (loading costs seconds); a changed file under the same id is reloaded. When a job
     uses none, they are switched off, so a job without LoRAs is bit-identical to a server that never loaded one.
     """
+    convrot = getattr(pipe, "_aha_runtime", "") == "convrot"  # peft cannot wrap ConvRotLinear: those variants use convrot_lora
+    if convrot:
+        import convrot_lora
     if not loras:
-        if adapters:
+        if convrot:
+            convrot_lora.activate([])  # the hooks stay, and add nothing
+        elif adapters:
             pipe.disable_lora()
         return
     for item in loras:
@@ -250,15 +293,21 @@ def apply_loras(pipe, loras: list[dict]) -> None:
         if adapters.get(name) == item["sha256"]:
             continue
         if name in adapters:
-            pipe.delete_adapters(name)
+            convrot_lora.delete(pipe.transformer, name) if convrot else pipe.delete_adapters(name)
             del adapters[name]
         while len(adapters) >= MAX_RESIDENT_ADAPTERS:
             oldest = next(iter(adapters))
-            pipe.delete_adapters(oldest)
+            convrot_lora.delete(pipe.transformer, oldest) if convrot else pipe.delete_adapters(oldest)
             del adapters[oldest]
         state = lora_state_for(item["path"], {n for n, _ in pipe.transformer.named_modules()})  # safetensors only: no pickle
-        pipe.load_lora_weights(state, adapter_name=name)
+        if convrot:
+            convrot_lora.attach(pipe.transformer, name, state)
+        else:
+            pipe.load_lora_weights(state, adapter_name=name)
         adapters[name] = item["sha256"]
+    if convrot:
+        convrot_lora.activate(loras)
+        return
     pipe.enable_lora()
     pipe.set_adapters([i["id"] for i in loras], adapter_weights=[i["scale"] for i in loras])
 
@@ -323,7 +372,10 @@ def main() -> None:
                     raise RuntimeError("no CUDA device is available to this worker")
                 gpu = int(msg.get("gpu") or 0)
                 torch.cuda.set_device(gpu)
-                pipe, mode = load_pipeline(msg.get("variant") or "int8", msg["weights_dir"], gpu)
+                if msg.get("memory_limit_gib"):  # the operator's [gpu] memory_limit_gib: PyTorch may not take more than this
+                    total = torch.cuda.mem_get_info(gpu)[1]
+                    torch.cuda.set_per_process_memory_fraction(min(1.0, msg["memory_limit_gib"] * 2**30 / total), gpu)
+                pipe, mode = load_pipeline(msg.get("variant") or "int8", msg["weights_dir"], gpu, msg.get("files"))
                 kv_cache = True
                 emit({
                     "event": "loaded", "model": msg.get("model"), "variant": msg.get("variant"), "placement": mode,

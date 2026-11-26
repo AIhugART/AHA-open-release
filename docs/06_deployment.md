@@ -6,15 +6,22 @@
 ## 0. Common requirements
 
 - An NVIDIA GPU + CUDA driver (macOS/Apple Silicon is not part of v1; to be measured).
-- Disk: ~19 GB for Qwen INT8. MiniMax H3 (community quantized build only, not installable yet) needs about 15–20 GB for the model plus ~5 GB of VAEs and a text encoder — see [05_models.md](05_models.md) §2.0.
+- Disk: 15–19 GB for one Qwen variant (the shared text encoder and VAE are downloaded once; each further ConvRot variant adds 4.6–7.3 GB). MiniMax H3 (installable from the command line or the web page) needs
+  **~43-50 GB** for one build: the shared text encoder 25.3 GiB + VAEs 5.4 GiB, plus the transformer of the chosen build (NVFP4
+  11.7 GiB, mixed 14.8 GiB, INT8 19.5 GiB), from three pinned repositories, plus its own PyTorch environment — see
+  [05_models.md](05_models.md) §2.0 and §2.5.
+- GPU for MiniMax H3: **at least 16 GB** (8 and 12 GB cards are not supported); the reference model needs 18 GB or more. Which build and
+  size fit: [05_models.md](05_models.md) §2.5.
 - Python + [`uv`](https://docs.astral.sh/uv/) (AHA open creates a separate venv for each worker from the worker's lock file).
 
 ```bash
 uv sync --extra download    # from a source checkout (not on PyPI yet); or install a wheel built with `uv build`
 aha-open init --profile local
-aha-open models install qwen-image-2.1 --accept-license qwen-research            # the INT8 build, ~18 GB
-# MiniMax (when its worker ships): also asks you to confirm you are not in an excluded territory
-# aha-open models install minimax-h3-fl2va --accept-license minimax-h3-community --confirm-territory
+aha-open models install qwen-image-2.1 --accept-license qwen-research            # the best variant that fits your GPU (~17 GB); `--variant` picks another, see `models list`
+# MiniMax H3 (~46 GB): also confirm you are not in an excluded territory
+# aha-open models install minimax-h3-fl2va --accept-license minimax-h3 --confirm-territory
+# MiniMax H3 with reference images (a second model): it goes into the same folder and downloads only its own 14 GiB transformer when the line above was done
+# aha-open models install minimax-h3-ref2va --accept-license minimax-h3 --confirm-territory
 aha-open doctor
 ```
 
@@ -29,7 +36,7 @@ writes the default `local` configuration. Your settings, models and images live 
 |---|---|
 | Install | Run the `.exe`. It is **not code-signed**, so Windows SmartScreen may warn the first time; compare the file's SHA-256 with `SHA256SUMS` on the release page |
 | First start | Start menu ▸ *AHA open* (or the *Start AHA open now* box at the end of the setup). It starts the gateway in the background — no console window — and opens the web page |
-| The model | The model is **not** downloaded by the installer. The page shows *Download a Model* with the licence; tick the box and press the button ([05_models.md](05_models.md), [04_architecture.md](04_architecture.md) section 6.1). About 18 GB, plus the model's own Python environment |
+| The model | The model is **not** downloaded by the installer. The page shows *Download a Model* with the licence; tick the box and press the button ([05_models.md](05_models.md), [04_architecture.md](04_architecture.md) section 6.1). About 18 GB, plus the model's own Python environment. MiniMax H3 is on the same panel (about 46 GB; its licence excludes the EU, UK, South Korea and the US, so a second checkbox asks the person to confirm they are not in one of them; the reference model then needs only ~15 GB more) |
 | Stop | Start menu ▸ *Stop AHA open* (it also stops a download in progress) |
 | Uninstall | Settings ▸ Apps. It stops the gateway first and **keeps your models and settings** unless you answer *Yes* to the question about deleting them (a silent uninstall keeps them) |
 
@@ -100,6 +107,7 @@ Every step that is public (the snapshot push, the GitHub Release) is a decision 
 | "weights found in the installer" for a few bytes | `.pth` is also a Python path file (`_virtualenv.pth`) | A file counts as weights by suffix **and** size (≥ 10 MiB) |
 | The offline failure said only "could not be prepared" | The marker list did not contain uv's real wording | Markers come from real logs kept in `tests/fixtures/installer/`; add the new log when a new wording appears |
 | The page's progress bar stayed at 0% for minutes | `hf-xet` keeps the bytes in its own cache and assembles each file at the end | The bar uses the downloader's own byte count (`AHAOPEN_PROGRESS`) |
+| The smoke failed at `/admin/models` on a good build | Its list of expected models still held only Qwen after MiniMax H3 was added to the page | The list is `WEB_MODELS`; a test holds it equal to what the page can install. A smoke that fails leaves its gateway running: stop and uninstall the temporary install by hand |
 | A cut-off download was reported *ready* and *Download* did not continue | `model_index.json` is among the first files to arrive | Unfinished = a `.incomplete` file, or hf began and no `install.json` ended it |
 
 ## 1. The `local` profile — the client on the same machine
@@ -115,6 +123,18 @@ is only needed when a client runs under another operating-system account.
 
 Note: the client and AHA open share the GPU with graphics applications (Photoshop/Premiere). When VRAM is tight, set
 `variant = "int8"` and avoid running a video model on the machine that is editing video.
+
+### Limiting the GPU memory the server uses
+
+```toml
+[gpu]
+memory_limit_gib = 15.5   # absent or 0 = the whole card
+```
+
+For a card shared with other programs. The server judges which model variants and sizes fit against this number instead of the
+card's size, and the workers may not allocate more PyTorch memory than that (the MiniMax worker keeps 0.5 GiB of it free). It is
+also how a smaller card is imitated on a larger one; the imitation is not exact (bandwidth and the driver's own memory differ).
+`aha-open doctor` and the support report show the limit and the GPU's compute capability (its architecture generation).
 
 ## 2. The `lan` profile — one GPU machine serving the whole local network
 
@@ -227,3 +247,14 @@ worker-qwen_image.log in the server's logs folder shows where it stopped.` The e
 - A native crash while loading was seen once (exit code 3221225477, cold first load) and could not be reproduced afterwards, so
   its cause is not known; the lines above are what will show it if it happens again.
 - Nothing is retried automatically: a retry costs GPU minutes, so the client decides. The next job starts a fresh worker.
+
+### 6.1 A full GPU on Windows: slow instead of an error (MiniMax H3)
+
+On Windows the NVIDIA driver can move GPU memory to system RAM when the card is full, instead of reporting "out of memory".
+Nothing fails; the work just becomes several times slower. Measured on an RTX 3090 Ti with MiniMax H3 at 1344×768: one
+transformer block took **3.95 s with the card full** and **1.19 s with room left** (same code), which turned a 20-minute clip
+into 40 minutes. The MiniMax worker therefore caps PyTorch at the memory that is physically free when a job starts (minus
+0.5 GiB) — going over is then an out-of-memory error with a clear message — and computes its feed-forward layers in slices
+so that a 1344×768 clip stays under that cap. Close other programs that use the GPU (games, other AI tools) before a long clip.
+The NVIDIA Control Panel setting *CUDA – Sysmem Fallback Policy: Prefer No Sysmem Fallback* makes the driver itself refuse to
+spill; it is optional.

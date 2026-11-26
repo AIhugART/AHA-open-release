@@ -17,7 +17,31 @@ def json_of(out: str) -> dict:
     return json.loads(out[out.index("{"):])
 
 
-FAKE_SCENARIOS = sorted(k for k, v in scenarios.load_all()[0].items() if v.requires_worker == "fake")
+FAKE_SCENARIOS = sorted(k for k, v in scenarios.load_all()[0].items() if v.requires_worker == "fake" and "sized_video_sandbox" not in v.preconditions)
+SIZED_SCENARIOS = sorted(k for k, v in scenarios.load_all()[0].items() if "sized_video_sandbox" in v.preconditions)
+
+
+@pytest.fixture
+def sized_sandbox_up():
+    """Function scope on purpose: a module-scoped one would still be up when the default `sandbox_up` of the next tests starts."""
+    from aha_open_mcp import sandbox
+
+    sandbox.stop()  # one sandbox at a time
+    info = sandbox.start(sized_video=True)
+    try:
+        yield info
+    finally:
+        sandbox.stop()
+
+
+def test_there_are_scenarios_that_need_the_sized_video_sandbox():
+    assert SIZED_SCENARIOS == ["cancel_running_video", "video_size_mismatch_rejected"]
+
+
+@pytest.mark.parametrize("scenario_id", SIZED_SCENARIOS)
+def test_each_video_scenario_passes_on_a_sandbox_with_the_sized_video_model(sized_sandbox_up, scenario_id):
+    out = tools.run_scenario(scenario_id, record=False)
+    assert "VERDICT: PASS" in out and "evidence 🧪 (fake worker)" in out, out
 
 
 @pytest.mark.parametrize("scenario_id", FAKE_SCENARIOS)

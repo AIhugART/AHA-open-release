@@ -29,8 +29,13 @@ Conversely AHA open does not depend on any client: every client that speaks `/v1
 **AHA open is an independent open-source project** (Apache-2.0) with its own repository, versions and release schedule.
 
 **AHA open has its own simple web page** (`/ui/`) for generating images without any other client: choose a model, type a
-prompt, choose a size, attach reference images, follow progress, cancel, download the result. It is **not** an image library or an
-editor — it only keeps recent results for the job retention period. The page is a `/v1` client like any other and has no private path to a model.
+prompt, choose a size, attach reference images, follow progress, cancel, download the result. For a video model it offers the sizes
+the model declares by name (for MiniMax H3: `native` 1344×768 and `preview` 608×352), a fixed length when the model has only one,
+a seed, a note on the GPU memory each size needs, and the clip player with its length, frame rate and sound; the model's required
+label ("MiniMax H3") and the territories it is not licensed in are shown beside the model and the result. It also has a panel to download
+models, with the licence checkbox and, when a licence excludes territories, a separate confirmation that the person is not in one. It is **not** an image
+library or an editor — it only keeps recent results for the job retention period. The page is a `/v1` client like any other and
+has no private path to a model.
 
 ## 4. Principles
 

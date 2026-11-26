@@ -167,13 +167,14 @@ def test_internet_needs_loopback_access_confirmation_and_hosts(tmp_path):
 def test_internet_profile_answers_only_to_its_hostname_and_hosted_models_stay_off(make_gateway):
     gw = make_gateway(
         profile="internet", access_confirmed=True, hosts=["aha.example.com"],
-        models=[ModelConfig("example-image", "fake"), ModelConfig("minimax-h3-fl2va", "minimax_h3", variant="bf16")],
+        models=[ModelConfig("example-image", "fake"), ModelConfig("minimax-h3-fl2va", "minimax_h3", variant="mixed")],
     )
     assert not gw.cfg.local_token_path.exists()
     token = new_client_token(gw, "remote")
     remote = Api(gw.base, token, host="aha.example.com")
     models = {m["id"]: m for m in remote.get("/v1/manifest").json()["models"]}
     assert models["minimax-h3-fl2va"]["state"] == "error"  # rule 13: hosted-service duties not accepted
+    assert models["minimax-h3-fl2va"]["state_detail"] == "hosted_service_obligations_not_accepted"  # for that reason, not for another
     assert models["example-image"]["state"] == "ready"
     refused = remote.job({"task": "video.generate", "model": "minimax-h3-fl2va", "prompt": "waves", "params": {}})
     assert refused.status_code == 403
@@ -183,7 +184,7 @@ def test_internet_profile_answers_only_to_its_hostname_and_hosted_models_stay_of
 def test_hosted_service_models_become_available_only_after_explicit_acceptance(make_gateway):
     gw = make_gateway(
         profile="internet", access_confirmed=True, hosts=["aha.example.com"], hosted_service_obligations="accepted",
-        models=[ModelConfig("minimax-h3-fl2va", "minimax_h3", variant="bf16")],
+        models=[ModelConfig("minimax-h3-fl2va", "minimax_h3", variant="mixed")],
     )
     remote = Api(gw.base, new_client_token(gw, "remote"), host="aha.example.com")
     state = remote.get("/v1/manifest").json()["models"][0]["state"]

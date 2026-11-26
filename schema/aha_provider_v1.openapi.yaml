@@ -32,6 +32,7 @@ paths:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Upload" } } } }
         "400": { $ref: "#/components/responses/Error" }
         "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
   /v1/uploads/{upload_id}/parts/{n}:
     put:
       operationId: putUploadPart
@@ -118,7 +119,9 @@ components:
     bearer: { type: http, scheme: bearer }
   responses:
     Error:
-      description: Error
+      description: Error. When retry_after_s is a number the response also has a Retry-After header (whole seconds, rounded up).
+      headers:
+        Retry-After: { description: "Seconds to wait; present when error.retry_after_s is a number", schema: { type: integer, minimum: 1 } }
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
   schemas:
     ErrorBody:
@@ -196,6 +199,14 @@ components:
               label: { type: string }
               disk_gib: { type: number }
               vram_gib: { type: object, additionalProperties: { type: [number, "null"] } }
+              too_small_up_to_gib: { type: object, additionalProperties: { type: number }, description: "Sizes that ran out of memory on a card of this many GiB, so no peak was measured." }
+              ram_gib: { type: [number, "null"], description: "Measured peak of system memory while the model loads (null = not measured)." }
+              seconds: { type: object, additionalProperties: { type: [number, "null"] }, description: "Measured time of one image per size tier (null = not measured)." }
+              loras: { type: [boolean, "null"], description: "true = a real LoRA run succeeded on this variant; null = not tried; false = refused." }
+              quality_note: { type: string }
+              installed: { type: boolean, description: "The weights of this variant are complete on the server's disk." }
+              fit: { enum: [fits, tight, too_small, unknown], description: "From the measured peak against this server's GPU; unknown = not measured, never a refusal." }
+              fit_by_tier: { type: object, additionalProperties: { enum: [fits, tight, too_small, unknown] }, description: "Video models only: the same judgement for each size tier." }
               selected: { type: boolean }
               recommended: { type: boolean }
         license:

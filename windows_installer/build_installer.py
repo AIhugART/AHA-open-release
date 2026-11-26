@@ -263,6 +263,10 @@ def _get(url: str, token: str | None = None) -> tuple[int, bytes]:
         return err.code, err.read()
 
 
+# What a fresh install must offer on the Download panel. Written out rather than read from the installed package, so a model that
+# silently disappears fails the smoke; a test holds it equal to aha_open.install so that adding a model is noticed before a build.
+WEB_MODELS = ["qwen-image-2.1", "minimax-h3-fl2va", "minimax-h3-ref2va"]
+
 APP_ID = "{56B3FE1F-7C37-4C1B-AF6E-9C1F28DF42B4}"  # must equal AppId in aha-open.iss (a test checks it)
 
 
@@ -364,11 +368,10 @@ def smoke(installer: Path, extra_env: dict[str, str] | None = None, expect_failu
         token = (data / "local_client.token").read_text(encoding="utf-8").strip()
         status, body = _get(base + "/admin/models", token)
         listed = json.loads(body) if status == 200 else {}
-        if status != 200 or [m["id"] for m in listed.get("models", [])] != ["qwen-image-2.1"]:
+        if status != 200 or [m["id"] for m in listed.get("models", [])] != WEB_MODELS:
             raise BuildError(f"/admin/models answered {status}: {body[:200]!r}")
-        model = listed["models"][0]
-        print(f"gateway up on {port}: health 200, /ui/ has the download panel, /admin/models offers {model['id']} "
-              f"(state {model['state']}, blocker {model['blocker']['code'] if model['blocker'] else 'none'})", flush=True)
+        offered = ", ".join(f"{m['id']} (state {m['state']}, blocker {m['blocker']['code'] if m['blocker'] else 'none'})" for m in listed["models"])
+        print(f"gateway up on {port}: health 200, /ui/ has the download panel, /admin/models offers {offered}", flush=True)
         stopped = subprocess.run([str(py), "-m", "aha_open.cli", "stop"], env=env, cwd=tmp, capture_output=True, text=True, timeout=60, check=False)
         if stopped.returncode or "stopped" not in stopped.stdout:
             raise BuildError("stop failed: " + stopped.stdout + stopped.stderr)

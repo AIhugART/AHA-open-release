@@ -4,11 +4,13 @@
 |---|---|---|
 | [01_overview.md](01_overview.md) | Goals, boundaries, principles | First look |
 | [03_api_v1.md](03_api_v1.md) | The `/v1` API specification (OpenAPI is in [`../schema/`](../schema/)) | Writing a client or another `/v1` provider |
+| [aha_open_api/README.md](aha_open_api/README.md) | **How-to guides for using the API**: quickstart, concepts, building a client, recipes, errors, developer hand-off, runnable examples (Python, PowerShell, curl, Node) | Using AHA open from a script, or building an app on it |
 | [04_architecture.md](04_architecture.md) | How AHA open works inside | Developing AHA open |
 | [05_models.md](05_models.md) | Models, hardware, licenses, measurements | Choosing a model, deploying |
 | [06_deployment.md](06_deployment.md) | The three deployment profiles | Installing |
 | [07_security.md](07_security.md) | Threat model and security rules | Opening AHA open to a LAN or the internet |
-| [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: agent-driven end-to-end tests and diagnosis (design, not implemented yet) | Testing a real server, debugging a failed job |
+| [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: agent-driven end-to-end tests and diagnosis | Testing a real server, debugging a failed job |
+| [10_web_ui.md](10_web_ui.md) | The web page: the menu (Generate, Settings, Report, About), the support report | Using or changing `/ui/` |
 | [../SECURITY.md](../SECURITY.md) | How to report a vulnerability | You found a security problem |
 | [../THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md) | Licenses of the packages AHA open installs | Checking compliance |
 

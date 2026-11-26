@@ -16,7 +16,7 @@ from mcp.client.stdio import stdio_client
 EXPECTED = {
     "check_harness", "check_health", "probe_v1", "read_gateway_log", "read_worker_log", "full_diagnostics",
     "run_sandbox_start", "run_sandbox_stop", "run_upload", "run_job", "wait_job", "run_cancel", "assert_result_image",
-    "list_scenarios", "get_scenario", "run_scenario", "diff_runs", "diagnose_job", "run_ui_url",
+    "assert_result_video", "list_scenarios", "get_scenario", "run_scenario", "diff_runs", "diagnose_job", "run_ui_url",
 }
 
 

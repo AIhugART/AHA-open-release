@@ -2,64 +2,63 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#020711">
 <link rel="icon" href="data:,">
 <title>AHA open</title>
 <link rel="stylesheet" href="./theme.css">
 </head>
 <body>
-<a class="skip-link" href="#workspace">Skip to Workspace</a>
-<header class="site-header shell">
-  <div class="header-shell">
-    <a class="brand" href="./" aria-label="AHA open home" translate="no">
+<a id="skip-workspace" class="skip-link" href="#workspace">Skip to Workspace</a>
+<header class="site-header">
+    <a class="brand" href="#/generate" aria-label="AHA open home" translate="no">
       <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M5 27 17.5 6 30 27M10 20h15M22 6l9 15" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="brand-name">AHA<span>open</span></span>
     </a>
-    <div class="header-meta"><span class="header-pill">Creative workspace</span><span>Open source. Yours to create.</span></div>
-  </div>
+    <nav class="site-nav" aria-label="Main menu">
+      <a href="#/generate" data-nav="generate">Generate</a>
+      <a href="#/settings/connect" data-nav="settings">Settings</a>
+      <a href="#/report" data-nav="report">Report</a>
+      <a href="#/about" data-nav="about">About</a>
+    </nav>
+    <div class="header-meta"><span id="connpill" class="conn" role="status">Not connected</span></div>
 </header>
 <main id="workspace" class="shell" tabindex="-1">
-  <div class="intro">
-    <div><span class="eyebrow">Your models. Your machine.</span><h1>A little prompt. A new possibility.</h1>
-      <p class="sub">Generate and edit with open AI models, powered by your own GPU.</p></div>
-    <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" stroke="currentColor" stroke-width="1.5"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.5"/></svg>Nothing leaves this server</div>
-  </div>
+<nav id="subnav" class="subnav" aria-label="Settings" hidden>
+  <a href="#/settings/connect" data-sub="settings/connect">Connect Your Server</a>
+  <a href="#/settings/download" data-sub="settings/download">Download a Model</a>
+  <a href="#/settings/models" data-sub="settings/models">Manage Models</a>
+</nav>
 
-  <section id="connect" class="panel connection" aria-labelledby="connect-title">
-    <div><h2 id="connect-title">Connect Your Server</h2><p class="note">Use your access token, or launch with <code>aha-open open</code> to connect automatically.</p></div>
-    <div>
-      <label for="token">Access token</label>
-      <div class="row"><input id="token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="aho_…" aria-describedby="status"><button id="save" type="button">Connect</button></div>
-      <div id="status" class="note" role="status">Enter your token to load available models.</div>
+<div id="page-generate" class="page" hidden>
+  <div class="intro">
+    <div><h1>Create</h1>
+      <p class="sub">Generate images and video, or edit an image with a prompt.</p></div>
+    <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" stroke="currentColor" stroke-width="1.5"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.5"/></svg>Runs on your server</div>
+  </div>
+  <p id="more-models" class="note more-models" role="status" hidden></p>
+  <div class="workspace">
+  <section class="panel welcome">
+    <div class="when-disconnected">
+      <h2>Connect to Get Started</h2>
+      <p class="note">Use your access token to load the models on your server.</p>
+      <a class="button-link" href="#/settings/connect">Connect Your Server <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="when-connected">
+      <h2>Set Up a Model</h2>
+      <p class="note">Download a model on the machine that runs <span translate="no">AHA open</span> to start generating.</p>
+      <a class="button-link" href="#/settings/download">Download a Model <span aria-hidden="true">↗</span></a>
     </div>
   </section>
-
-  <section id="setup" class="panel composer" aria-labelledby="setup-title" hidden>
-    <div class="panel-heading"><div class="heading-group"><h2 id="setup-title">Download a Model</h2></div><span class="eyebrow">Setup</span></div>
-    <p class="note">The first time, the model has to be downloaded to this machine. It stays here; nothing is sent anywhere.</p>
-    <div id="setuplist"></div>
-  </section>
-
-  <div class="workspace">
-  <section class="panel welcome" aria-labelledby="welcome-title">
-    <h2 id="welcome-title">Make Room for Your Ideas</h2>
-    <p class="note">Your creative workspace is a connection away.</p>
-    <ol>
-      <li><div><strong>Connect your server</strong><p class="note">Enter the token from your AHA open installation.</p></div></li>
-      <li><div><strong>Choose a model &amp; write a prompt</strong><p class="note">Describe what you want to create, then adjust the settings.</p></div></li>
-      <li><div><strong>Generate &amp; make it yours</strong><p class="note">Preview your result here and download the original file.</p></div></li>
-    </ol>
-  </section>
   <section id="make" class="panel composer" aria-labelledby="make-title" hidden>
-    <div class="panel-heading"><div class="heading-group"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" stroke="currentColor" stroke-width="1.5"/></svg><h2 id="make-title">Create Something New</h2></div><span class="eyebrow">Create</span></div>
+    <div class="panel-heading"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" stroke="currentColor" stroke-width="1.5"/></svg><h2 id="make-title">Generation Setup</h2></div>
     <div class="field-grid">
       <div><label for="model">Model</label><select id="model" name="model" aria-describedby="modelinfo"></select></div>
       <div><label for="task">Task</label><select id="task" name="task"></select></div>
     </div>
     <div id="modelinfo" class="note"></div>
-    <label for="prompt">Your prompt</label><textarea id="prompt" name="prompt" autocomplete="off" maxlength="8000" placeholder="A quiet mountain lake at sunrise, soft light, delicate reflections…" aria-describedby="prompt-help"></textarea>
-    <p id="prompt-help" class="note">Describe the subject, style, lighting, and details you have in mind.</p>
+    <label for="prompt">Prompt</label>
+    <textarea id="prompt" name="prompt" autocomplete="off" maxlength="8000" placeholder="A quiet mountain lake at sunrise, soft light, delicate reflections…"></textarea>
     <div id="imagebox">
       <div class="row">
         <div><label for="size">Image size</label><select id="size" name="size"></select></div>
@@ -76,381 +75,178 @@
         </div>
         <div id="loralist"></div>
         <div id="loranote" class="note" role="status"></div>
-        <details id="loraadmin" hidden>
-          <summary>Manage LoRA files on this server</summary>
-          <p class="note">Only on the machine that runs AHA open. Files are checked (safetensors only) before they are offered.</p>
-          <label for="lorafile">LoRA file (.safetensors)</label><input id="lorafile" name="lorafile" type="file" accept=".safetensors">
-          <div class="row">
-            <div><label for="loraid">ID</label><input id="loraid" name="loraid" type="text" autocomplete="off" spellcheck="false"></div>
-            <div><label for="loraname">Display name</label><input id="loraname" name="loraname" type="text" autocomplete="off"></div>
-          </div>
-          <div class="row">
-            <div><label for="loratrigger">Trigger word <span class="optional">(optional)</span></label><input id="loratrigger" name="loratrigger" type="text" autocomplete="off" spellcheck="false"></div>
-            <div><label for="lorascale">Default strength</label><input id="lorascale" name="lorascale" type="text" autocomplete="off" inputmode="decimal" value="1"></div>
-          </div>
-          <p><button id="loraadd" type="button">Add LoRA</button> <span id="loraadmsg" class="note" role="status"></span></p>
-          <div id="loraadmlist"></div>
-        </details>
       </fieldset>
     </div>
     <div id="videobox" hidden>
       <div class="row">
-        <div><label for="vratio">Aspect ratio</label><select id="vratio" name="vratio"></select></div>
+        <div id="vsizerow" class="wide" hidden><label for="vsize">Video size</label><select id="vsize" name="vsize"></select></div>
+        <div id="vratiorow"><label for="vratio">Aspect ratio</label><select id="vratio" name="vratio"></select></div>
+        <div id="vedgerow"><label for="vedge">Short edge</label><select id="vedge" name="vedge"></select></div>
         <div><label for="vdur">Duration (s)</label><input id="vdur" name="vdur" type="text" autocomplete="off" inputmode="decimal"></div>
-        <div><label for="vedge">Short edge</label><select id="vedge" name="vedge"></select></div>
+        <div><label for="vseed">Seed <span class="optional">(optional)</span></label><input id="vseed" name="vseed" type="text" inputmode="numeric" autocomplete="off" placeholder="Random…"></div>
+      </div>
+      <div id="vnote" class="note"></div>
+      <div id="refbox" hidden>
+        <label id="reflabel" for="refs">Reference</label><input id="refs" name="refs" type="file" multiple aria-describedby="refnote referror">
+        <div id="refnote" class="note"></div>
+        <div id="referror" class="field-error" role="status"></div>
       </div>
     </div>
     <div id="editbox" hidden>
-      <label for="files">Source image, then optional reference images</label><input id="files" name="files" type="file" accept="image/*" multiple>
+      <label for="files">Source Image &amp; Optional References</label><input id="files" name="files" type="file" accept="image/*" multiple aria-describedby="filehelp fileerror">
+      <div id="filehelp" class="note">Select the source image first, then any reference images.</div>
+      <div id="fileerror" class="field-error" role="status"></div>
     </div>
-    <div class="generate-actions"><button id="go" type="button">Generate</button><button id="cancel" type="button" class="secondary" hidden>Cancel</button></div>
-    <div class="bar" id="barwrap" hidden><i id="bar"></i></div>
+    <div class="generate-actions">
+      <button id="go" type="button">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" stroke="currentColor" stroke-width="1.75"/></svg>
+        <span class="button-ready">Generate</span><span class="button-busy">Generating…</span>
+      </button>
+      <button id="cancel" type="button" class="secondary" hidden>Cancel Job</button>
+    </div>
+    <div class="bar" id="barwrap" aria-hidden="true" hidden><i id="bar"></i></div>
     <div id="jobline" class="note" role="status"></div>
   </section>
 
   <section class="panel preview-panel" aria-labelledby="preview-title">
-    <div class="panel-heading"><div class="heading-group"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="m3 16 5-5 5 5 3-3 5 5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/></svg><h2 id="preview-title">Preview</h2></div><span class="eyebrow">Output</span></div>
+    <div class="panel-heading"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="m3 16 5-5 5 5 3-3 5 5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/></svg><h2 id="preview-title">Preview</h2></div>
     <div class="preview-stage">
       <div class="empty-preview">
-        <div class="preview-art"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="9" y="13" width="42" height="40" rx="7" stroke="currentColor" stroke-width="1.5" opacity=".55"/><path d="m10 43 12-12 13 13 7-7 9 9" stroke="currentColor" stroke-width="1.5" opacity=".7"/><path d="m47 5 2.7 7.3L57 15l-7.3 2.7L47 25l-2.7-7.3L37 15l7.3-2.7L47 5Z" fill="#071421" stroke="currentColor" stroke-width="1.5"/><circle cx="23" cy="25" r="3" stroke="currentColor" stroke-width="1.5" opacity=".7"/></svg></div>
-        <h3>Your Next Idea Starts Here</h3><p>Your generated image or video will appear here, ready to preview and download.</p>
+        <div class="preview-art"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="9" y="13" width="42" height="40" rx="7" stroke="currentColor" stroke-width="1.5" opacity=".55"/><path d="m10 43 12-12 13 13 7-7 9 9" stroke="currentColor" stroke-width="1.5" opacity=".7"/><path d="m47 5 2.7 7.3L57 15l-7.3 2.7L47 25l-2.7-7.3L37 15l7.3-2.7L47 5Z" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><circle cx="23" cy="25" r="3" stroke="currentColor" stroke-width="1.5" opacity=".7"/></svg></div>
+        <h3>No Output Yet</h3><p>Your generated image or video will appear here.</p>
       </div>
-      <div id="out" hidden><div id="checker"><img id="img" alt="Generated result" width="1024" height="1024" hidden><video id="vid" aria-label="Generated video" controls hidden></video></div>
-        <div class="result-actions"><a id="dl" class="download-link" download>Download Original</a><span class="note" id="outinfo"></span></div>
-      </div>
+      <div class="pending-preview" aria-hidden="true"><span class="spinner"></span><strong>Preparing Your Preview</strong><p>Follow progress in Generation Setup.</p></div>
     </div>
-    <div class="preview-footer"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>Generated on your server. Ready for your next step.</div>
+    <div id="out" hidden>
+      <div id="checker"><img id="img" alt="Generated image" width="1024" height="1024" hidden><video id="vid" aria-label="Generated video" playsinline controls hidden></video></div>
+      <div class="result-actions"><a id="dl" class="download-link" download>Download Original <span aria-hidden="true">↓</span></a><span class="note" id="outinfo"></span></div>
+    </div>
   </section>
   </div>
+</div>
+
+<div id="page-connect" class="page" hidden>
+  <div class="intro"><div><h1>Connect Your Server</h1><p class="sub">Connect to an <span translate="no">AHA open</span> installation to use its image and video models.</p></div></div>
+  <div class="connection-grid">
+    <section id="connect" class="panel composer" aria-labelledby="connect-title">
+      <div class="panel-heading"><h2 id="connect-title">Server Credentials</h2></div>
+      <p class="note">Paste the token from your installation or ask your server operator for one.</p>
+      <label for="token">Access token</label>
+      <input id="token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="aho_…" aria-describedby="status">
+      <div id="status" class="note" role="status"></div>
+      <div class="generate-actions"><button id="save" type="button"><span class="button-ready">Connect</span><span class="button-busy">Connecting…</span></button></div>
+    </section>
+    <section class="panel local-help" aria-labelledby="local-title">
+      <h2 id="local-title">Connect from the Server</h2>
+      <p class="note">Run this command on the machine that hosts <span translate="no">AHA open</span>. It opens the workspace with your access token.</p>
+      <div class="terminal"><span aria-hidden="true">$</span><code translate="no">aha-open open</code></div>
+    </section>
+  </div>
+</div>
+
+<div id="page-download" class="page" hidden>
+  <div class="intro"><div><h1>Download a Model</h1><p class="sub">Choose a model and a variant that fits your GPU and available disk space.</p></div></div>
+  <section id="setup" class="panel composer" aria-labelledby="setup-title" hidden>
+    <div class="panel-heading"><h2 id="setup-title">Available Models</h2></div>
+    <div id="setuplist"></div>
+  </section>
+  <section id="remote-download" class="panel composer" hidden>
+    <div class="panel-heading"><h2>Download from the Server</h2></div>
+    <p class="note">Run <code translate="no">aha-open open</code> on the machine that hosts <span translate="no">AHA open</span> to download models there.</p>
+  </section>
+  <section id="setup-none" class="panel composer" hidden>
+    <div class="panel-heading"><h2>No New Models</h2></div>
+    <p class="note">Use <a href="#/settings/models">Manage Models</a> to download another variant or free disk space.</p>
+  </section>
+  <div class="panel model-fallback">
+    <div class="when-disconnected"><h2>Connect to Browse Models</h2><a class="button-link" href="#/settings/connect">Connect Your Server <span aria-hidden="true">↗</span></a></div>
+    <p class="when-connected note" role="status">Loading available models…</p>
+  </div>
+</div>
+
+<div id="page-models" class="page" hidden>
+  <div class="intro"><div><h1>Manage Models</h1><p class="sub">Switch variants, free disk space, and manage LoRA files on your server.</p></div></div>
+  <section id="models" class="panel composer" aria-labelledby="models-title" hidden>
+    <div class="panel-heading"><h2 id="models-title">Installed Models</h2></div>
+    <p class="note">Each model comes in variants that trade quality, speed and the memory they need. Pick the one that fits this machine, download another, or delete one you no longer use.</p>
+    <div id="modelslist"></div>
+    <div id="modelsmsg" class="note" role="status"></div>
+  </section>
+  <section id="remote-models" class="panel composer" hidden>
+    <div class="panel-heading"><h2>Manage Models from the Server</h2></div>
+    <p class="note">Run <code translate="no">aha-open open</code> on the machine that hosts <span translate="no">AHA open</span> to manage models there.</p>
+  </section>
+  <section id="models-none" class="panel composer" hidden>
+    <div class="panel-heading"><h2>No Installed Models</h2></div>
+    <p class="note">No model is on this machine yet. Start with <a href="#/settings/download">Download a Model</a>.</p>
+  </section>
+  <div class="panel model-fallback">
+    <div class="when-disconnected"><h2>Connect to Manage Models</h2><a class="button-link" href="#/settings/connect">Connect Your Server <span aria-hidden="true">↗</span></a></div>
+    <p class="when-connected note" role="status">Loading installed models…</p>
+  </div>
+  <details id="loraadmin" class="panel composer" hidden open>
+    <summary>Manage LoRA Files</summary>
+    <p class="note">Only on the machine that runs AHA open. Files are checked (safetensors only) before they are offered.</p>
+    <label for="lorafile">LoRA file (.safetensors)</label><input id="lorafile" name="lorafile" type="file" accept=".safetensors">
+    <div class="row">
+      <div><label for="loraid">ID</label><input id="loraid" name="loraid" type="text" autocomplete="off" spellcheck="false"></div>
+      <div><label for="loraname">Display name</label><input id="loraname" name="loraname" type="text" autocomplete="off"></div>
+    </div>
+    <div class="row">
+      <div><label for="loratrigger">Trigger word <span class="optional">(optional)</span></label><input id="loratrigger" name="loratrigger" type="text" autocomplete="off" spellcheck="false"></div>
+      <div><label for="lorascale">Default strength</label><input id="lorascale" name="lorascale" type="text" autocomplete="off" inputmode="decimal" value="1"></div>
+    </div>
+    <p><button id="loraadd" type="button">Add LoRA</button> <span id="loraadmsg" class="note" role="status"></span></p>
+    <div id="loraadmlist"></div>
+  </details>
+</div>
+
+<div id="page-report" class="page" hidden>
+  <div class="intro"><div><h1>Report a Problem</h1><p class="sub">Collect diagnostics you can review and share with support.</p></div></div>
+  <section class="panel composer reading-panel" aria-labelledby="report-title">
+    <div class="panel-heading"><h2 id="report-title">Diagnostic Report</h2></div>
+    <p class="note">The report includes machine details, model status, and recent server logs when available. It excludes access tokens, prompts, and images.</p>
+    <label for="reportnote">What happened? <span class="optional">(optional)</span></label>
+    <textarea id="reportnote" name="reportnote" autocomplete="off" maxlength="2000" placeholder="For example, my image came out grey after I clicked Generate…"></textarea>
+    <div class="generate-actions"><button id="reportmake" type="button"><span class="button-ready">Create Report</span><span class="button-busy">Collecting…</span></button></div>
+    <div id="reportmsg" class="note" role="status"></div>
+    <div id="reportremote" class="note" hidden>This page is not running on the machine that runs AHA open, so the server's logs are not part of the report. Run <code>aha-open report</code> on that machine and send its output as well.</div>
+    <div id="reportout" hidden>
+      <label for="reporttext">Your report</label>
+      <textarea id="reporttext" name="reporttext" class="report-text" readonly spellcheck="false" aria-describedby="reportsend"></textarea>
+      <div class="generate-actions"><button id="reportcopy" type="button">Copy Report</button><button id="reportsave" type="button" class="secondary">Save as .txt</button></div>
+      <p id="reportsend" class="note">Share the report on Zalo with <a data-zalo href="#" target="_blank" rel="noopener noreferrer"></a>, or send the .txt file by email or chat.</p>
+    </div>
+  </section>
+</div>
+
+<div id="page-about" class="page" hidden>
+  <div class="intro"><div><h1>About <span translate="no">AHA open</span></h1><p class="sub">Open-source image and video tools powered by your GPU.</p></div></div>
+  <section class="panel composer reading-panel" aria-labelledby="about-title">
+    <div class="panel-heading"><h2 id="about-title">Server &amp; Project Information</h2></div>
+    <dl class="about-facts">
+      <dt>Version</dt><dd id="about-version">Not connected.</dd>
+      <dt>Licence</dt><dd>Apache License 2.0. Each model has its own licence.</dd>
+      <dt>Privacy</dt><dd>Your prompts and media go to your server, which returns results to the requesting app. <span translate="no">AHA open</span> sends no telemetry.</dd>
+      <dt>API</dt><dd>Use the <code translate="no">/v1</code> API to connect other apps to this server.</dd>
+      <dt>Support</dt><dd>Make a <a href="#/report">report</a> and send it on Zalo to <a data-zalo href="#" target="_blank" rel="noopener noreferrer"></a>.</dd>
+      <dt>Source code</dt><dd><a href="https://github.com/AIhugART/AHA-open-release" target="_blank" rel="noopener noreferrer">github.com/AIhugART/AHA-open-release</a></dd>
+    </dl>
+    <h3 class="about-models-title">Models on this server</h3>
+    <div id="about-models"></div>
+    <div class="about-empty note">
+      <span class="when-disconnected"><a href="#/settings/connect">Connect your server</a> to see its models and licences.</span>
+      <span class="when-connected">No models are listed on this server yet.</span>
+    </div>
+  </section>
+</div>
+
 </main>
-<footer class="shell site-footer"><span translate="no">AHA open · Open-source creative tools</span><span>Powered by your GPU. Driven by your imagination.</span></footer>
-<script>
-"use strict";
-const $ = id => document.getElementById(id);
-let token = "", manifest = null, jobId = null, polling = false;
-try { token = sessionStorage.getItem("aho_token") || ""; } catch (e) { /* storage may be blocked; the page still works */ }
-// `aha-open open` puts the token in the URL fragment: it is never sent to the server and never reaches a log.
-const m = location.hash.match(/token=([^&]+)/);
-if (m) { token = decodeURIComponent(m[1]); try { sessionStorage.setItem("aho_token", token); } catch (e) {} history.replaceState(null, "", location.pathname); }
-$("token").value = token;
-
-async function api(path, opts = {}) {
-  const res = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: "Bearer " + token } });
-  if (!res.ok) {
-    let e = {}; try { e = (await res.json()).error || {}; } catch (_) {}
-    const err = new Error(e.message || res.statusText); err.code = e.code || String(res.status); err.status = res.status; err.retry = e.retry_after_s; throw err;
-  }
-  return res;
-}
-const say = (el, text, cls = "") => { el.textContent = text; el.className = "note " + cls; };
-
-async function connect() {
-  token = $("token").value.trim();
-  try { sessionStorage.setItem("aho_token", token); } catch (e) {}
-  try {
-    manifest = await (await api("/v1/manifest")).json();
-  } catch (e) {
-    const why = { unauthorized: "That token is not accepted. Check it, or ask the operator for a new one.", forbidden: "The server refused this page (Host/Origin not allowed)." }[e.code];
-    say($("status"), why || ("Could not reach the server: " + e.message), "err"); $("make").hidden = true; return;
-  }
-  say($("status"), `Connected to ${manifest.provider.name} ${manifest.provider.version} (profile ${manifest.profile}).`);
-  $("make").hidden = manifest.models.length === 0; // a fresh install has no model yet: the download panel below comes first
-  fillModels();
-  onModel();
-  loadAdmin();
-  loadSetup();
-}
-
-function fillModels() {
-  $("model").innerHTML = "";
-  for (const mod of manifest.models) $("model").add(new Option(mod.display_name + (mod.state === "ready" ? "" : " - " + mod.state), mod.id));
-}
-
-// Read the manifest again (a LoRA may have been added or removed) and keep what the user had chosen.
-async function refreshManifest() {
-  const model = $("model").value, task = $("task").value, picks = {};
-  for (const r of document.querySelectorAll("#loralist .lora")) {
-    const cb = r.querySelector("input[type=checkbox]"); picks[cb.dataset.id] = { on: cb.checked, scale: r.querySelector("input[type=text]").value };
-  }
-  manifest = await (await api("/v1/manifest")).json();
-  fillModels();
-  if (manifest.models.some(x => x.id === model)) $("model").value = model;
-  onModel();
-  if ([...$("task").options].some(o => o.value === task)) { $("task").value = task; onTask(); }
-  for (const r of document.querySelectorAll("#loralist .lora")) {
-    const cb = r.querySelector("input[type=checkbox]"), p = picks[cb.dataset.id];
-    if (p) { cb.checked = p.on; r.querySelector("input[type=text]").value = p.scale; }
-  }
-}
-
-// ---- LoRA management: the server answers 404 unless this page runs on the machine itself (local profile), then it stays hidden.
-async function loadAdmin() {
-  let res;
-  try { res = await (await api("/admin/loras")).json(); } catch (e) { $("loraadmin").hidden = true; return; }
-  $("loraadmin").hidden = false;
-  const list = $("loraadmlist"); list.replaceChildren();
-  for (const l of res.loras) {
-    const row = document.createElement("div"); row.className = "lora";
-    const label = document.createElement("span"); label.textContent = `${l.display_name} (${l.id}, ${(l.bytes / 2 ** 20).toFixed(0)} MB)`;
-    const rm = document.createElement("button"); rm.type = "button"; rm.className = "secondary"; rm.textContent = "Remove";
-    rm.addEventListener("click", () => removeLora(l));
-    row.append(label, rm); list.append(row);
-  }
-  for (const p of res.problems) { const d = document.createElement("div"); d.className = "note err"; d.textContent = p; list.append(d); }
-}
-
-async function removeLora(l) {
-  if (!confirm(`Remove "${l.display_name}" from this server? A job that is already waiting and uses it will fail.`)) return;
-  try { await api("/admin/loras/" + encodeURIComponent(l.id), { method: "DELETE" }); } catch (e) { say($("loraadmsg"), e.message, "err"); return; }
-  say($("loraadmsg"), `Removed ${l.id}.`);
-  await refreshManifest(); await loadAdmin();
-}
-
-async function addLora() {
-  const file = $("lorafile").files[0], msg = $("loraadmsg"), id = $("loraid").value.trim();
-  if (!file) { say(msg, "Choose a .safetensors file first.", "err"); return; }
-  if (!id) { say(msg, "Give the LoRA an id (lowercase letters, digits, - or _).", "err"); return; }
-  const q = new URLSearchParams();
-  for (const [key, el] of [["name", "loraname"], ["trigger", "loratrigger"], ["scale", "lorascale"]]) if ($(el).value.trim()) q.set(key, $(el).value.trim());
-  $("loraadd").disabled = true; say(msg, `Sending ${(file.size / 2 ** 20).toFixed(0)} MB and checking it...`);
-  try {
-    await api(`/admin/loras/${encodeURIComponent(id)}?${q}`, { method: "PUT", body: file });
-    say(msg, `Added ${id}. It is in the list above.`);
-    $("lorafile").value = ""; for (const el of ["loraid", "loraname", "loratrigger"]) $(el).value = "";
-    await refreshManifest(); await loadAdmin();
-  } catch (e) { say(msg, e.message, "err"); } finally { $("loraadd").disabled = false; }
-}
-
-$("lorafile").addEventListener("change", () => {
-  const f = $("lorafile").files[0]; if (!f) return;
-  const stem = f.name.replace(/\.safetensors$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
-  if (!$("loraid").value) $("loraid").value = stem.slice(0, 64);
-  if (!$("loraname").value) $("loraname").value = f.name.replace(/\.safetensors$/i, "");
-});
-$("loraadd").addEventListener("click", addLora);
-$("lorarefresh").addEventListener("click", async () => {
-  try { await refreshManifest(); await loadAdmin(); } catch (e) { say($("loranote"), "Could not read the list: " + e.message, "err"); }
-});
-
-// ---- Download a model: the server answers 404 unless this page runs on the machine itself (local profile), then the panel stays hidden.
-const PHASE_TEXT = {
-  preparing: "Checking your machine...",
-  downloading: "Downloading the model...",
-  creating_environment: "Setting up the image engine. This installs PyTorch and takes several minutes...",
-  finishing: "Finishing...",
-};
-const gb = n => (n / 2 ** 30).toFixed(1);
-const COMMERCIAL = { not_allowed: "Research and evaluation only. Not for commercial use.", allowed_with_conditions: "Commercial use with conditions.", allowed: "Commercial use allowed." };
-const installTimers = {}, refreshedFor = {};
-
-async function loadSetup() {
-  let res;
-  try { res = await (await api("/admin/models")).json(); } catch (e) { $("setup").hidden = true; return; }
-  const todo = res.models.filter(x => x.state !== "ready");
-  $("setup").hidden = todo.length === 0;
-  const list = $("setuplist"); list.replaceChildren();
-  for (const mod of todo) list.append(renderSetup(mod));
-}
-
-function renderSetup(mod) {
-  const box = document.createElement("div"); box.className = "setup-model";
-  const title = document.createElement("strong"); title.textContent = `${mod.display_name} (about ${mod.disk_gib} GB)`;
-  const lic = mod.license, cu = lic.commercial_use;
-  const facts = document.createElement("div");
-  facts.append(badge(lic.name, ""), badge(cu === "allowed" ? "commercial use allowed" : "commercial use: " + cu, cu === "allowed" ? "ok" : cu === "not_allowed" ? "bad" : "warn"));
-  const terms = document.createElement("p"); terms.className = "note";
-  terms.textContent = (lic.notes || COMMERCIAL[cu] || "") + " "; // the server's own words first; ours only if it sent none
-  if (lic.url) { const a = document.createElement("a"); a.href = lic.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = "Read the full licence"; terms.append(a); }
-  const agree = document.createElement("label");
-  const tick = document.createElement("input"); tick.type = "checkbox";
-  agree.append(tick, " I have read the licence and I accept it.");
-  const actions = document.createElement("div"); actions.className = "generate-actions";
-  const go = document.createElement("button"); go.type = "button"; go.textContent = "Download model";
-  const stop = document.createElement("button"); stop.type = "button"; stop.className = "secondary"; stop.textContent = "Cancel"; stop.hidden = true;
-  actions.append(go, stop);
-  const wrap = document.createElement("div"); wrap.className = "bar"; wrap.hidden = true;
-  const fill = document.createElement("i"); wrap.append(fill);
-  const msg = document.createElement("div"); msg.className = "note"; msg.setAttribute("role", "status");
-  box.append(title, facts, terms, agree, actions, wrap, msg);
-
-  const ui = { go, stop, tick, wrap, fill, msg };
-  const sync = () => { go.disabled = !tick.checked || !!mod.blocker || mod.install.state === "running"; };
-  tick.addEventListener("change", sync);
-  go.addEventListener("click", async () => {
-    go.disabled = true; say(msg, "Starting...");
-    try { mod.install = await (await api(`/admin/models/${encodeURIComponent(mod.id)}/install`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accept_license: lic.key }) })).json(); }
-    catch (e) { say(msg, e.message, "err"); sync(); return; }
-    showInstall(mod, ui);
-  });
-  stop.addEventListener("click", async () => {
-    stop.disabled = true;
-    try { await api(`/admin/models/${encodeURIComponent(mod.id)}/install`, { method: "DELETE" }); } catch (e) { say(msg, e.message, "err"); }
-    stop.disabled = false;
-  });
-  if (mod.blocker) say(msg, mod.blocker.message, "err");
-  sync();
-  if (mod.install.state === "running") { tick.checked = true; showInstall(mod, ui); } else showInstall(mod, ui);
-  return box;
-}
-
-// One place that turns a status into what the person sees, and keeps polling while it runs.
-function showInstall(mod, ui) {
-  const s = mod.install, running = s.state === "running";
-  ui.go.hidden = running; ui.stop.hidden = !running; ui.wrap.hidden = !running; ui.tick.disabled = running;
-  clearTimeout(installTimers[mod.id]);
-  if (running) {
-    const frac = s.phase === "downloading" && s.expected_bytes ? Math.min(1, s.downloaded_bytes / s.expected_bytes) : null;
-    ui.fill.style.width = frac === null ? "100%" : Math.round(frac * 100) + "%";
-    ui.fill.className = frac === null ? "indeterminate" : "";
-    const bytes = s.phase === "downloading" ? ` ${gb(s.downloaded_bytes)} of about ${gb(s.expected_bytes)} GB.` : "";
-    say(ui.msg, (PHASE_TEXT[s.phase] || "Working...") + bytes);
-    installTimers[mod.id] = setTimeout(async () => {
-      try { mod.install = await (await api(`/admin/models/${encodeURIComponent(mod.id)}/install`)).json(); }
-      catch (e) { say(ui.msg, "Lost contact with the server: " + e.message, "err"); installTimers[mod.id] = setTimeout(() => showInstall(mod, ui), 3000); return; }
-      showInstall(mod, ui);
-    }, 1000);
-    return;
-  }
-  ui.go.disabled = !ui.tick.checked || !!mod.blocker;
-  if (s.state === "succeeded") {
-    if (refreshedFor[mod.id] === s.finished_at) { // second look, after loadSetup() drew this panel again with the server's own state
-      say(ui.msg, `The download finished, but the model is not ready yet: ${mod.state_detail || mod.state}.`, "err"); return;
-    }
-    refreshedFor[mod.id] = s.finished_at;
-    say(ui.msg, "Finished. Checking the model...");
-    refreshManifest().then(() => { $("make").hidden = manifest.models.length === 0; const now = manifest.models.find(x => x.id === mod.id); if (now && now.state === "ready") say($("status"), `${mod.display_name} is installed. You can create images now.`, "ok"); return loadSetup(); }).catch(e => say(ui.msg, "Installed, but the list could not be refreshed: " + e.message, "err"));
-  } else if (s.state === "failed") { say(ui.msg, s.error ? s.error.message : "The download failed.", "err"); ui.go.textContent = "Try again"; }
-  else if (s.state === "cancelled") { say(ui.msg, "Cancelled. What was downloaded is kept, so the next try continues from there."); ui.go.textContent = "Download model"; }
-}
-
-function badge(text, cls) { const s = document.createElement("span"); s.className = "badge " + cls; s.textContent = text; return s; }
-function currentModel() { return manifest.models.find(x => x.id === $("model").value); }
-
-function onModel() {
-  const mod = currentModel(); if (!mod) return;
-  const info = $("modelinfo"); info.replaceChildren();
-  const lic = mod.license, cu = lic.commercial_use;
-  info.append(badge("state: " + mod.state, mod.state === "ready" ? "ok" : "warn"));
-  info.append(badge(lic.name + " - commercial use: " + cu, cu === "allowed" ? "ok" : cu === "not_allowed" ? "bad" : "warn"));
-  if (lic.required_ui_label) info.append(badge(lic.required_ui_label, ""));
-  if (lic.excluded_territories) info.append(badge("not licensed in: " + lic.excluded_territories.join(", "), "warn"));
-  if (mod.variant) { const v = mod.variants && mod.variants[mod.variant]; info.append(badge("variant: " + mod.variant + (v && v.recommended ? " (recommended here)" : ""), "")); }
-  if (mod.state_detail) info.append(document.createTextNode(" " + mod.state_detail));
-  if (lic.notes) { const p = document.createElement("div"); p.textContent = lic.notes; info.append(p); }
-  const tasks = $("task"); tasks.innerHTML = ""; for (const t of mod.tasks) tasks.add(new Option(t, t));
-  onTask();
-}
-
-function onTask() {
-  const mod = currentModel(), task = $("task").value, caps = mod.capabilities || {};
-  const video = task.startsWith("video."), edit = task === "image.edit";
-  $("imagebox").hidden = video; $("videobox").hidden = !video; $("editbox").hidden = !edit;
-  if (!video) {
-    $("size").innerHTML = "";
-    for (const s of caps.sizes || []) $("size").add(new Option(`${s.width} x ${s.height}  (${s.aspect_ratio}${s.tier ? ", " + s.tier : ""})`, `${s.width}x${s.height}`));
-    $("steps").value = caps.steps ? caps.steps.default : ""; $("transparentrow").hidden = !caps.rgba;
-    const native = (caps.sizes || []).some(s => s.tier === "native");
-    const lc = caps.loras, list = $("loralist"); list.replaceChildren();
-    $("lorabox").hidden = !lc;  // shown for every model that takes LoRA, even with none installed: the Refresh button and the manager live here
-    for (const l of (lc && lc.available) || []) {
-      const row = document.createElement("div"); row.className = "lora";
-      const cb = document.createElement("input"); cb.type = "checkbox"; cb.dataset.id = l.id; cb.id = "lora_" + l.id;
-      const lab = document.createElement("label"); lab.htmlFor = cb.id; lab.style.margin = "0"; lab.style.color = "inherit"; lab.textContent = l.display_name;
-      const sc = document.createElement("input"); sc.type = "text"; sc.inputMode = "decimal"; sc.value = l.default_scale; sc.setAttribute("aria-label", "strength of " + l.display_name);
-      row.append(cb, lab, sc);
-      if (l.trigger) row.append(badge("trigger: " + l.trigger, ""));
-      if (l.license) row.append(badge(l.license, ""));
-      list.append(row);
-    }
-    $("loranote").className = "note";
-    $("loranote").textContent = !lc ? "" : lc.available && lc.available.length ? `Up to ${lc.max} at once; strength ${lc.scale.min} to ${lc.scale.max}. Put the trigger words in your prompt.` : "No LoRA is installed on this server yet.";
-    $("sizenote").textContent = native ? "1k sizes are fast. Native sizes are the model's own and can need much more GPU memory (they may be very slow on a 24 GB card)." : "";
-  } else {
-    const fill = (el, list) => { el.innerHTML = ""; for (const v of list || []) el.add(new Option(v, v)); };
-    fill($("vratio"), caps.aspect_ratios); fill($("vedge"), caps.short_edges);
-    $("vdur").value = caps.durations_s ? caps.durations_s.min : "";
-  }
-}
-
-async function sha256Hex(buf) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map(b => b.toString(16).padStart(2, "0")).join(""); }
-
-async function uploadFile(file) {
-  const data = await file.arrayBuffer();
-  const made = await (await api("/v1/uploads", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bytes: data.byteLength, sha256: await sha256Hex(data), media_type: file.type || "image/png" }) })).json();
-  const size = made.part_size;
-  for (let n = 0, off = 0; off < data.byteLength; n++, off += size) {
-    await api(`/v1/uploads/${made.upload_id}/parts/${n}`, { method: "PUT", body: data.slice(off, off + size) });
-  }
-  await api(`/v1/uploads/${made.upload_id}/complete`, { method: "POST" });
-  return made.upload_id;
-}
-
-function intOrNull(v) { v = v.trim(); return v === "" ? null : Number(v); }
-
-async function generate() {
-  const task = $("task").value, body = { task, model: $("model").value, prompt: $("prompt").value, params: {}, inputs: [] };
-  $("go").disabled = true; $("out").hidden = true; say($("jobline"), "");
-  try {
-    if (task.startsWith("video.")) {
-      Object.assign(body.params, { aspect_ratio: $("vratio").value, short_edge: Number($("vedge").value) || undefined, duration_s: intOrNull($("vdur").value) ?? undefined });
-    } else {
-      const [w, h] = $("size").value.split("x").map(Number); Object.assign(body.params, { width: w, height: h });
-      const seed = intOrNull($("seed").value), steps = intOrNull($("steps").value);
-      if (seed !== null) body.params.seed = seed; if (steps !== null) body.params.steps = steps;
-      if (!$("transparentrow").hidden && $("transparent").checked) body.params.transparent = true;
-      const picked = [...document.querySelectorAll("#loralist .lora")].filter(r => r.querySelector("input[type=checkbox]").checked)
-        .map(r => ({ id: r.querySelector("input[type=checkbox]").dataset.id, scale: Number(r.querySelector("input[type=text]").value) }));
-      if (picked.length) body.params.loras = picked;
-    }
-    if (task === "image.edit") {
-      const files = [...$("files").files]; if (!files.length) throw Object.assign(new Error("Choose a source image first."), { code: "invalid_request" });
-      for (let i = 0; i < files.length; i++) { say($("jobline"), `Uploading ${i + 1}/${files.length}...`); body.inputs.push({ role: i ? "reference" : "source", upload_id: await uploadFile(files[i]) }); }
-    }
-    const job = await (await api("/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
-    jobId = job.id; $("cancel").hidden = false; $("barwrap").hidden = false; poll();
-  } catch (e) { say($("jobline"), explain(e), "err"); $("go").disabled = false; }
-}
-
-function explain(e) {
-  const known = {
-    model_not_installed: "This model is not installed on the server.", unsupported_hardware: "This server's hardware cannot run that model.",
-    busy: `The server is busy; try again${e.retry ? " in " + Math.ceil(e.retry) + " s" : " shortly"}.`, unauthorized: "Your token is no longer accepted.",
-    invalid_request: e.message, upload_incomplete: "An upload did not arrive intact; try again.", forbidden: e.message,
-  };
-  return known[e.code] || `${e.code}: ${e.message}`;
-}
-
-async function poll() {
-  if (polling) return; polling = true;
-  try {
-    for (;;) {
-      const j = await (await api("/v1/jobs/" + jobId)).json(), p = j.progress || {};
-      $("bar").style.width = Math.round((p.fraction || 0) * 100) + "%";
-      const where = { queued: `Waiting in the queue${j.queue_position ? " (position " + j.queue_position + ")" : ""}...`, loading_model: "Loading the model (this can take a while)...", running: `Generating ${p.step || 0}/${p.total_steps || "?"}...` }[j.status];
-      if (where) say($("jobline"), where);
-      if (j.status === "succeeded") { await show(j); break; }
-      if (j.status === "failed") { say($("jobline"), explain(j.error || { code: "failed", message: "failed" }), "err"); break; }
-      if (j.status === "cancelled") { say($("jobline"), "Cancelled."); break; }
-      await new Promise(r => setTimeout(r, 600));
-    }
-  } catch (e) { say($("jobline"), explain(e), "err"); }
-  polling = false; $("go").disabled = false; $("cancel").hidden = true; $("barwrap").hidden = true;
-}
-
-async function show(j) {
-  const r = j.results[0], blob = await (await api(`/v1/jobs/${j.id}/result`)).blob(), url = URL.createObjectURL(blob);
-  $("out").hidden = false; $("img").hidden = r.kind !== "image"; $("vid").hidden = r.kind !== "video";
-  (r.kind === "image" ? $("img") : $("vid")).src = url;
-  $("dl").href = url; $("dl").download = `${j.id}.${r.media_type.split("/")[1]}`;
-  $("outinfo").textContent = `${r.width ? r.width + " x " + r.height + ", " : ""}${(r.bytes / 1024).toFixed(0)} KB${r.seed !== undefined ? ", seed " + r.seed : ""}${r.loras ? ", LoRA " + r.loras.map(l => l.id + "@" + l.scale).join(" + ") : ""}`;
-  say($("jobline"), "Done.");
-}
-
-$("save").onclick = connect; $("token").onkeydown = e => { if (e.key === "Enter") connect(); };
-$("model").onchange = onModel; $("task").onchange = onTask; $("go").onclick = generate;
-$("cancel").onclick = async () => { try { await api(`/v1/jobs/${jobId}/cancel`, { method: "POST" }); } catch (e) { say($("jobline"), explain(e), "err"); } };
-if (token) connect();
-</script>
+<script src="./app.js"></script>
+<script src="./settings.js"></script>
+<script src="./generate.js"></script>
+<script src="./report.js"></script>
+<script src="./about.js"></script>
+<script src="./main.js"></script>
 </body>
 </html>

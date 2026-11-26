@@ -39,7 +39,7 @@
 12. **`local_client.token`** (hồ sơ `local`) chỉ ghi khi hồ sơ là `local`, quyền đọc chỉ cho người dùng hiện tại; xoá
     khi đổi sang hồ sơ khác.
 13. **Model có nghĩa vụ "hosted service"** (MiniMax H3) tắt mặc định ở hồ sơ `internet`.
-14. **`/admin` dành cho người ngồi tại máy** (quản lý LoRA và cài model — tải khoảng 18 GB và dựng môi trường Python, nên một trang ở site khác hay máy khác không bao giờ được phép bắt đầu việc đó). Chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`. Chỉ cần người gọi là loopback là chưa đủ: ở hồ sơ `internet`, tunnel kết nối từ `127.0.0.1`.
+14. **`/admin` dành cho người ngồi tại máy** (quản lý LoRA và cài, chuyển và xoá biến thể model — tải tới 18 GB, xoá file và dựng môi trường Python, nên một trang ở site khác hay máy khác không bao giờ được phép bắt đầu việc đó). Chỉ ở hồ sơ `local`, chỉ khi người gọi là loopback và hỏi bằng tên loopback, và vẫn cần token; mọi trường hợp khác trả `404`. Chỉ cần người gọi là loopback là chưa đủ: ở hồ sơ `internet`, tunnel kết nối từ `127.0.0.1`.
 
 ## 4. Test âm tính bắt buộc (bộ kiểm hợp chuẩn)
 

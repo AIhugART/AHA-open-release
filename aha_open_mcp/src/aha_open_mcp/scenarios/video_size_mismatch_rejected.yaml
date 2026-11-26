@@ -1,0 +1,21 @@
+id: video_size_mismatch_rejected
+title: "A worker that returns a video of another size than the accepted one makes the job fail, and no clip can be fetched"
+covers: "conformance/test_v1_video_sizes.py::test_a_worker_that_returns_another_size_than_accepted_is_a_failure_not_a_result"
+target: sandbox
+requires_worker: fake
+preconditions: [fake_worker_markers, sized_video_sandbox]
+side_effects: [creates_job]
+vars: {prompt: "waves __wrongsize"}
+steps:
+  - tool: run_job
+    args: {body: {task: video.generate, model: example-video-sized, prompt: "${prompt}", params: {seed: 1, short_edge: 32}}}
+  - tool: wait_job
+    args: {timeout_s: 30}
+  - tool: check_result_video
+assert:
+  - {path: submit.http_status, op: eq, value: 202}
+  - {path: job.status, op: eq, value: failed}
+  - {path: job.error.code, op: eq, value: generation_failed}
+  - {path: job.results, op: len_eq, value: 0}
+  - {path: video.fetched, op: eq, value: false}
+  - {path: video.http_status, op: eq, value: 409}

@@ -53,6 +53,7 @@ class Config:
     worker_load_timeout_s: float = 900.0
     job_timeout_s: float = 3600.0
     cancel_grace_s: float = 15.0
+    gpu_memory_limit_gib: float = 0.0  # [gpu] memory_limit_gib: use at most this much GPU memory; 0 = the whole card
     models: list[ModelConfig] = field(default_factory=list)
 
     # ---- derived ----
@@ -126,6 +127,10 @@ def from_dict(data: dict, data_dir: Path) -> Config:
     auth = data.get("auth", {})
     cfg.require_token = bool(auth.get("require_token", cfg.require_token))
     cfg.enroll = bool(auth.get("enroll", cfg.enroll))
+    limit = data.get("gpu", {}).get("memory_limit_gib", 0)
+    if isinstance(limit, bool) or not isinstance(limit, (int, float)) or limit < 0 or 0 < limit < 1:
+        raise ConfigError(f"[gpu] memory_limit_gib must be a number of GiB (at least 1; 0 or absent = the whole card), got {limit!r}")
+    cfg.gpu_memory_limit_gib = float(limit)
     for raw in data.get("models", []):
         cfg.models.append(
             ModelConfig(
@@ -179,6 +184,8 @@ def render(cfg: Config) -> str:
         f"require_token = {q(cfg.require_token)}",
         f"enroll = {q(cfg.enroll)}",
     ]
+    if cfg.gpu_memory_limit_gib:
+        lines += ["", "[gpu]", f"memory_limit_gib = {cfg.gpu_memory_limit_gib}"]
     for model in cfg.models:
         lines += [
             "",

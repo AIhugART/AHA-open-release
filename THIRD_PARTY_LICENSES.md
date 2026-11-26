@@ -17,6 +17,15 @@ libraries comes from PyTorch's distribution model and was not re-verified here).
 
 Model weights are not part of this repository and are not listed here; see `docs/05_models.md` for each model's license.
 
+**The MiniMax H3 worker is different (checked 2026-11-25).** Its environment (`workers/minimax_h3/uv.lock`, created on the
+operator's machine by `aha-open models install minimax-h3-fl2va`) contains PyAV, which writes the mp4. PyAV's own code is
+BSD-3-Clause, but its Windows wheel bundles FFmpeg DLLs, and that FFmpeg reports *"LGPL version 3 or later"* (its build
+options include `--enable-version3`, `--enable-libx264`, `--enable-libx265`); the wheel also ships `libx264-165.dll` and
+`libx265.dll`, whose upstream projects are GPL. AHA open does not ship these files (PyPI delivers them to the operator) and
+encodes H.264 with the BSD-licensed OpenH264 encoder (`libopenh264-7.dll`), never with x264/x265. The statement above
+("no package is GPL/AGPL/LGPL") is about the gateway and the Qwen-Image worker only. The ConvRot kernels come from
+`comfy-kitchen` (Apache-2.0); ComfyUI itself (GPL-3.0) is not installed, imported or copied.
+
 ## Shipped inside the Windows installer (`windows_installer/`)
 
 | Component | Version | License |
@@ -63,6 +72,7 @@ Those packages are covered by the worker table's licenses where they appear ther
 | charset-normalizer | 3.5.3 | MIT |
 | click | 8.5.1 | BSD-3-Clause |
 | colorama | 0.4.6 | BSD License |
+| comfy-kitchen | 0.2.42 | Apache-2.0 |
 | diffusers | 0.41.0.dev0 | Apache Software License |
 | filelock | 4.3.0 | MIT |
 | fsspec | 2026.9.0 | BSD-3-Clause |
@@ -96,6 +106,67 @@ Those packages are covered by the worker table's licenses where they appear ther
 | setuptools | 84.2.1 | MIT |
 | shellingham | 1.5.4 | ISC License (ISCL) |
 | sympy | 1.14.0 | BSD License |
+| tokenizers | 0.23.2 | Apache Software License |
+| torch | 2.10.0+cu128 | BSD-3-Clause |
+| torchvision | 0.25.0+cu128 | BSD |
+| tqdm | 4.70.1 | MPL-2.0 AND MIT |
+| transformers | 5.17.0 | Apache 2.0 License |
+| typer | 0.29.2 | MIT |
+| typing-inspection | 0.4.5 | MIT |
+| typing_extensions | 4.16.0 | PSF-2.0 |
+| urllib3 | 2.8.0 | MIT |
+| zipp | 4.1.2 | MIT |
+
+## MiniMax H3 worker (`workers/minimax_h3`, locked in `workers/minimax_h3/uv.lock`)
+
+Generated on 2026-11-25 from the metadata of an environment built from the lock (`uv sync --frozen`), 53 packages. See the
+note at the top about the FFmpeg/x264/x265 libraries inside the `av` wheel.
+
+| Package | Version | License (as declared in its metadata) |
+|---|---|---|
+| accelerate | 1.15.0 | Apache |
+| aha-open | 0.1.0.dev2 | Apache-2.0 |
+| annotated-doc | 0.0.7 | MIT |
+| annotated-types | 0.8.0 | MIT |
+| anyio | 4.16.0 | MIT |
+| av | 17.0.1 | BSD-3-Clause |
+| certifi | 2026.11.20 | MPL-2.0 |
+| charset-normalizer | 3.5.3 | MIT |
+| click | 8.5.1 | BSD-3-Clause |
+| colorama | 0.4.6 | BSD License |
+| comfy-kitchen | 0.2.42 | Apache-2.0 |
+| diffusers | 0.41.0.dev0 | Apache 2.0 License |
+| filelock | 4.3.1 | MIT |
+| fsspec | 2026.9.0 | BSD-3-Clause |
+| h11 | 0.16.0 | MIT |
+| hf-xet | 1.8.0 | Apache-2.0 |
+| httpcore | 1.0.9 | BSD-3-Clause |
+| httpx | 0.28.1 | BSD-3-Clause |
+| huggingface_hub | 1.32.0 | Apache-2.0 |
+| idna | 3.20 | BSD-3-Clause |
+| importlib_metadata | 10.2.0 | Apache-2.0 |
+| Jinja2 | 3.1.6 | BSD License |
+| lazy-importer | 0.1.0 | Apache-2.0 |
+| markdown-it-py | 4.3.0 | MIT License |
+| MarkupSafe | 3.0.4 | BSD-3-Clause |
+| mdurl | 0.1.2 | MIT License |
+| mpmath | 1.3.0 | BSD |
+| networkx | 3.7 | BSD-3-Clause |
+| numpy | 2.2.6 | BSD License |
+| packaging | 26.4 | Apache-2.0 OR BSD-2-Clause |
+| pillow | 12.2.0 | MIT-CMU |
+| psutil | 7.0.0 | BSD-3-Clause |
+| pydantic | 2.14.4 | MIT |
+| pydantic_core | 2.50.5 | MIT |
+| Pygments | 2.21.0 | BSD-2-Clause |
+| PyYAML | 6.0.4 | MIT |
+| regex | 2026.11.23 | Apache-2.0 AND CNRI-Python |
+| requests | 2.34.2 | Apache-2.0 |
+| rich | 15.0.0 | MIT |
+| safetensors | 0.8.0 | Apache Software License |
+| setuptools | 84.2.1 | MIT |
+| shellingham | 1.5.4 | ISC License |
+| sympy | 1.14.0 | BSD |
 | tokenizers | 0.23.2 | Apache Software License |
 | torch | 2.10.0+cu128 | BSD-3-Clause |
 | torchvision | 0.25.0+cu128 | BSD |

@@ -75,9 +75,18 @@ Danh sách tool được chốt lúc phiên agent khởi động: khởi động
 
 ## 8. Hiện có gì
 
-19 tool: `check_harness`, `check_health`, `probe_v1`, `read_gateway_log`, `read_worker_log`, `full_diagnostics`, `run_sandbox_start`,
-`run_sandbox_stop`, `run_ui_url`, `run_upload`, `run_job`, `wait_job`, `run_cancel`, `assert_result_image`, `list_scenarios`,
-`get_scenario`, `run_scenario`, `diff_runs`, `diagnose_job`. Chi tiết từng tool: bản tiếng Anh, mục 8.
+20 tool: `check_harness`, `check_health`, `probe_v1`, `read_gateway_log`, `read_worker_log`, `full_diagnostics`, `run_sandbox_start`,
+`run_sandbox_stop`, `run_ui_url`, `run_upload`, `run_job`, `wait_job`, `run_cancel`, `assert_result_image`, `assert_result_video`,
+`list_scenarios`, `get_scenario`, `run_scenario`, `diff_runs`, `diagnose_job`. Chi tiết từng tool: bản tiếng Anh, mục 8.
+
+- `assert_result_video` tải kết quả và xét chính **FILE** bằng cách đọc các hộp mp4 của nó (không cần thư viện codec): kích thước hình, số khung,
+  tốc độ khung hình, thời lượng, track âm thanh (số kênh, tần số lấy mẫu), dòng chú thích nhãn. PASS khi mọi phép so với số mà job báo đều
+  đúng (kích thước, fps ±0,01, thời lượng ±0,05 s, có hay không âm thanh, sha256, số byte). File bị cắt hoặc không phải mp4 cho `parsed: false`
+  kèm lý do, không bao giờ là một ngoại lệ.
+- `run_sandbox_start` có `sized_video=true` để thêm model giả `example-video-sized` ép đúng kích thước video (dùng cho kịch bản
+  `cancel_running_video` và `video_size_mismatch_rejected`); `real_model` kèm `model=minimax-h3-fl2va` hoặc `minimax-h3-ref2va` trỏ tới worker thật,
+  lấy trọng số từ `AHA_OPEN_H3_WEIGHTS` hoặc `<data>/models/minimax-h3-fl2va/mixed`.
+- `run_upload` nhận `rgb` để tạo ảnh tham chiếu một màu. Một lần `wait_job` chờ tối đa 600 s, nên job dài hơn thì nối hai bước chờ.
 
 Điểm an toàn đáng nhớ: `real_model=true` cần `allow_gpu=true` và ít nhất **20 GiB RAM trống** (đỉnh đo được là 17,6 GiB; một lần nạp
 khi chỉ còn vài GiB trống từng chết bằng crash native), nếu không công cụ từ chối và nói con số; `allow_low_ram=true` là việc con người

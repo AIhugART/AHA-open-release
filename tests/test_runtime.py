@@ -164,3 +164,23 @@ def test_the_log_file_rotates(tmp_path, monkeypatch):
     finally:
         runtime.remove_gateway_log(handler)
     assert Path(str(runtime.log_path(cfg)) + ".1").exists()
+
+
+def test_the_support_report_of_a_real_gateway_that_ran_a_job_has_neither_the_token_nor_the_prompt(served):
+    """The gateway never logs either, and the report adds a second layer. This is the one place both are checked against the real thing."""
+    from aha_open import report
+
+    cfg, _, base = served
+    token = run_one_job(cfg, base)
+    text = report.build_report(cfg)
+    assert "worker started: fake pid=" in text and "== Log: gateway.log ==" in text and "the running gateway matches the files on disk" in text
+    assert token not in text and "SENTINEL-PROMPT" not in text
+    assert str(cfg.data_dir) not in text  # the data folder is `<data>` in a report
+
+
+def test_every_line_of_the_server_log_is_written_once(served):
+    """Seen in a real log (plan 2026-11-25_ui_menu_report_about_plan.md, U2): `Started server process` twice, because the file handler sat on
+    `uvicorn.error` AND on its parent `uvicorn`, which `uvicorn.error` propagates to."""
+    cfg, _, _ = served
+    text = runtime.log_path(cfg).read_text(encoding="utf-8")
+    assert text.count("Application startup complete.") == 1 and text.count("Started server process") == 1

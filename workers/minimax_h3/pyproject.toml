@@ -1,0 +1,32 @@
+[project]
+name = "aha-open-worker-minimax-h3"
+version = "0.0.1"
+description = "AHA open worker: MiniMax H3 community ConvRot build (pinned runtime, own venv, no ComfyUI)"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  # The versions the M0' gate ran on (plan 2026-11-24_minimax_h3_plan.md section 3.3). Same torch/diffusers/transformers as the
+  # Qwen worker, but a separate environment: upgrading one model never touches the other.
+  "torch==2.10.0",
+  "torchvision==0.25.0",
+  "diffusers @ git+https://github.com/huggingface/diffusers@80c7ed262aeffbeb43ef13ae04baeb9b84515a69",
+  "transformers==5.17.0",
+  "accelerate==1.15.0",
+  "huggingface-hub==1.32.0",
+  "tokenizers==0.23.2",
+  "safetensors==0.8.0",
+  "pillow==12.2.0",
+  "numpy==2.2.6",
+  "psutil==7.0.0",
+  "comfy-kitchen==0.2.42",  # Apache-2.0: the ConvRot INT8 kernels; not ComfyUI
+  "av==17.0.1",             # writes the mp4 (H.264 + AAC) and its metadata
+]
+
+# CUDA 12.8 wheels (Windows and Linux). The PyPI wheel for Windows is CPU-only, so torch must come from this index.
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

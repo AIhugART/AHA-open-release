@@ -15,8 +15,9 @@ from pathlib import Path
 from . import __version__
 from . import loras as lora_store
 from .auth import Auth
-from .catalog import CATALOG, detect_gpus, model_state
+from .catalog import CATALOG, describe_gpu, detect_gpus, model_state, variant_installed
 from .config import Config, ConfigError, ModelConfig, default_data_dir, load, render, validate_for_serve
+from .hardware import fit_for, gpu_budget_mib
 from .store import Store
 from .util import iso
 
@@ -117,16 +118,34 @@ def cmd_stop(args: argparse.Namespace) -> int:
 def cmd_models(args: argparse.Namespace) -> int:
     cfg = _load(args)
     if args.action == "list":
-        print(f"{'MODEL':<22}{'VARIANT':<9}{'STATE':<22}LICENSE")
+        print(f"{'MODEL':<22}{'VARIANT':<14}{'STATE':<22}LICENSE")
         for mc in cfg.models:
             spec = CATALOG.get(mc.id)
             if spec is None:
-                print(f"{mc.id:<22}{'-':<9}{'unknown model':<22}")
+                print(f"{mc.id:<22}{'-':<14}{'unknown model':<22}")
                 continue
             state, detail = model_state(cfg, mc, spec)
-            print(f"{mc.id:<22}{mc.variant or '-':<9}{state + (' (' + detail + ')' if detail else ''):<22}{spec.license['name']} / commercial: {spec.license['commercial_use']}")
+            print(f"{mc.id:<22}{mc.variant or '-':<14}{state + (' (' + detail + ')' if detail else ''):<22}{spec.license['name']} / commercial: {spec.license['commercial_use']}")
+            if spec.variants:  # every variant the model offers: which are on disk, which one is in use
+                gpus = detect_gpus()
+                for name, info in spec.variants.items():
+                    mark = "in use" if name == mc.variant else ("installed" if variant_installed(cfg, spec, name) else "not installed")
+                    fit = fit_for(info, gpu_budget_mib(cfg, gpus[0] if gpus else None))
+                    print(f"  - {name:<14}{mark:<14}{info['disk_gib']:>3} GB disk, GPU fit: {fit}")
         return 0
-    from .install import install_model
+    from .install import install_model, remove_variant, use_variant
+
+    if args.action == "use":
+        done, message = use_variant(cfg, args.model, args.variant)
+        print(message if done else f"error: {message}")
+        return 0 if done else 2
+    if args.action == "remove":
+        done, message = remove_variant(cfg, args.model, args.variant, include_shared=args.include_shared, dry_run=not args.yes)
+        if done and not args.yes:
+            print(f"{message}\nNothing was deleted. Run again with --yes to delete.")
+            return 0
+        print(message if done else f"error: {message}")
+        return 0 if done else 2
 
     return install_model(cfg, args)
 
@@ -282,6 +301,19 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    """Print (or save) the support report. Works with the server stopped, which is when the web page cannot be opened."""
+    from .report import build_report
+
+    text = build_report(_load(args), note=args.note or "")
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"Wrote {args.out} ({len(text.encode('utf-8')) // 1024} KiB). Read it, then send it to whoever supports your installation.")
+    else:
+        sys.stdout.buffer.write(text.encode("utf-8"))  # UTF-8 whatever the console's code page is: the text is meant to be copied
+    return 0
+
+
 def cmd_tunnel(args: argparse.Namespace) -> int:
     """Print what the operator has to do for the internet profile. Nothing here touches a Cloudflare account."""
     try:  # this command only prints advice, so it must work before `init` too
@@ -322,7 +354,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     print(f"AHA open {__version__}  data_dir={cfg.data_dir}  profile={cfg.profile}  listen={cfg.listen}")
     gpus = detect_gpus(ttl_s=0)
-    line(bool(gpus), "GPU: " + (", ".join(f"{g['name']} {g['memory_total_mib']} MiB" for g in gpus) or "no NVIDIA GPU found (nvidia-smi)"))
+    line(bool(gpus), "GPU: " + (", ".join(describe_gpu(g) for g in gpus) or "no NVIDIA GPU found (nvidia-smi)"))
+    if cfg.gpu_memory_limit_gib:
+        print(f"      [gpu] memory_limit_gib = {cfg.gpu_memory_limit_gib}: the server uses at most this much GPU memory")
     try:
         validate_for_serve(cfg)
         line(True, "configuration is allowed to start")
@@ -369,9 +403,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("models", help="list or install models")
     ms = s.add_subparsers(dest="action", required=True)
-    ms.add_parser("list")
+    ms.add_parser("list", help="the configured models and, for each, which variants are installed and which one is in use")
+    u = ms.add_parser("use", help="select an installed variant (restart the server to load it)")
+    u.add_argument("model")
+    u.add_argument("variant")
+    r = ms.add_parser("remove", help="delete the files of one variant (shows what it would delete unless --yes is given)")
+    r.add_argument("model")
+    r.add_argument("variant")
+    r.add_argument("--include-shared", action="store_true", help="also delete the files shared with other variants, if none of them is installed")
+    r.add_argument("--yes", action="store_true", help="really delete")
     i = ms.add_parser("install", help="install a model (downloads weights, prepares its worker environment)")
     i.add_argument("model")
+    i.add_argument("--variant", help="which variant to install (default: the best one that fits this machine; see `models list`)")
     i.add_argument("--accept-license", help="license key you accept for this model (see the message printed without it)")
     i.add_argument("--confirm-territory", action="store_true", help="confirm you are not in a territory the license excludes")
     i.add_argument("--from-dir", help="use weights already on disk instead of downloading")
@@ -425,6 +468,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("doctor", help="check GPU, configuration and models")
     s.set_defaults(func=cmd_doctor)
+
+    s = sub.add_parser("report", help="print a support report (machine, models, end of the logs; no token, no prompt) to send to whoever helps you")
+    s.add_argument("--out", help="write it to this file instead of printing it")
+    s.add_argument("--note", help="what happened, in your own words (added at the top)")
+    s.set_defaults(func=cmd_report)
     return p
 
 

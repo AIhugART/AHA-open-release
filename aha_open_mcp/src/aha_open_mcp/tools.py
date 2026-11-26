@@ -97,13 +97,19 @@ def full_diagnostics(target: str = "sandbox") -> str:
 
 @_guard
 def run_sandbox_start(fake_step_s: float = 0.02, crash_on_load: bool = False, real_model: bool = False, weights_dir: str = "",
-                      allow_gpu: bool = False, allow_low_ram: bool = False) -> str:
-    """Start a throwaway gateway on a random loopback port with a temporary data directory. Default: the FAKE worker.
-    `real_model=true` runs the real Qwen INT8 model from the weights and worker environment already in this checkout: it needs
-    allow_gpu=true and enough free RAM (the model loads on the first job, not at start)."""
+                      allow_gpu: bool = False, allow_low_ram: bool = False, model: str = "qwen-image-2.1", sized_video: bool = False,
+                      variant: str = "", memory_limit_gib: float = 0.0) -> str:
+    """Start a throwaway gateway on a random loopback port with a temporary data directory. Default: the FAKE worker
+    (`sized_video=true` adds a synthetic video model that declares exact sizes, a frame grid and steps, like MiniMax H3).
+    `real_model=true` runs a real model from the weights and worker environment already in this checkout: `model` is
+    `qwen-image-2.1` (default; INT8), `minimax-h3-fl2va` (video with sound) or `minimax-h3-ref2va` (the same with reference images);
+    for MiniMax H3 `variant` picks the build (`mixed` by default, `int8`, `nvfp4`). `memory_limit_gib` is the operator's `[gpu]`
+    limit, e.g. 15.5 to imitate a 16 GB card. It needs allow_gpu=true and
+    enough free RAM (the model loads on the first job, not at start)."""
     if real_model:
         if not allow_gpu:
-            raise TargetError("real_model=true loads a real model on the GPU (about 9.5 GiB VRAM at 1024x1024 and 17.6 GiB RAM, measured) - pass allow_gpu=true")
+            raise TargetError("real_model=true loads a real model on the GPU (Qwen INT8: about 9.5 GiB VRAM at 1024x1024 and 17.6 GiB RAM; "
+                              "MiniMax H3: about 17-20 GiB VRAM, measured) - pass allow_gpu=true")
         free = ram.free_ram_gib()
         if not allow_low_ram and (free is None or free < ram.REAL_MODEL_NEEDS_GIB):
             raise TargetError(
@@ -112,14 +118,18 @@ def run_sandbox_start(fake_step_s: float = 0.02, crash_on_load: bool = False, re
             )
         banner = (
             "SIDE EFFECTS: creates a temporary data directory and starts an `aha-open serve` process on a random loopback port with the REAL "
-            "Qwen INT8 worker. The first job loads the model (about 9.5 GiB VRAM and 17.6 GiB RAM, ~90 s cold, measured). Undo with run_sandbox_stop."
+            + ("MiniMax H3 worker. A clip takes minutes (about 5 at 608x352, 22 at 1344x768 on an RTX 3090 Ti, measured) and holds the GPU while it runs. "
+               if model in ("minimax-h3-fl2va", "minimax-h3-ref2va") else
+               "Qwen INT8 worker. The first job loads the model (about 9.5 GiB VRAM and 17.6 GiB RAM, ~90 s cold, measured). ")
+            + "Undo with run_sandbox_stop."
         )
     else:
         banner = (
             "SIDE EFFECTS: creates a temporary data directory, starts an `aha-open serve` process on a random loopback port with the "
             "FAKE worker. No GPU, no model, no network beyond loopback. Undo with run_sandbox_stop."
         )
-    info = sandbox.start(fake_step_s=fake_step_s, crash_on_load=crash_on_load, real_model=real_model, weights_dir=weights_dir)
+    info = sandbox.start(fake_step_s=fake_step_s, crash_on_load=crash_on_load, real_model=real_model, weights_dir=weights_dir,
+                         model=model, sized_video=sized_video, variant=variant, memory_limit_gib=memory_limit_gib)
     t = resolve("sandbox")
     return f"{banner}\n\n{evidence.header(t)}\n\nsandbox up at {info['base_url']} (gateway pid {info['pid']}, data dir {info['data_dir']})"
 
@@ -176,11 +186,11 @@ def run_job(body_json: str, target: str = "sandbox", allow_gpu: bool = False, al
 
 
 @_guard
-def wait_job(job_id: str, target: str = "sandbox", timeout_s: float = 60.0, until: str = "") -> str:
-    """Poll a job until it ends (or reaches one of the comma-separated states in `until`). Starts nothing."""
+def wait_job(job_id: str, target: str = "sandbox", timeout_s: float = 60.0, until: str = "", min_step: int = 0) -> str:
+    """Poll a job until it ends (or reaches one of the comma-separated states in `until`, and `min_step` sampling steps). Starts nothing."""
     t = _resolved(target)
     states = tuple(s for s in until.split(",") if s) or jobs.TERMINAL
-    return _with_header(t, json.dumps(jobs.wait(t, job_id, timeout_s, states), indent=2))
+    return _with_header(t, json.dumps(jobs.wait(t, job_id, timeout_s, states, min_step), indent=2))
 
 
 @_guard
@@ -196,6 +206,17 @@ def assert_result_image(job_id: str, target: str = "sandbox", index: int = 0) ->
     t = _resolved(target)
     r = jobs.check_result_image(t, job_id, index)
     ok = r.get("fetched") and all(r[k] for k in ("signature_ok", "ihdr_matches", "sha256_matches", "bytes_match"))
+    return _with_header(t, f"{'PASS' if ok else 'FAIL'}\n{json.dumps(r, indent=2)}")
+
+
+@_guard
+def assert_result_video(job_id: str, target: str = "sandbox", index: int = 0) -> str:
+    """Download a video result and judge the FILE: its own boxes say the picture size, frame count, frame rate, sound track
+    (channels, sample rate) and the disclosure comment; they must match the job's metadata, sha256 and byte count too."""
+    t = _resolved(target)
+    r = jobs.check_result_video(t, job_id, index)
+    keys = ("parsed", "size_matches", "fps_matches", "duration_matches", "audio_matches", "sha256_matches", "bytes_match")
+    ok = bool(r.get("fetched")) and all(r.get(k) for k in keys)
     return _with_header(t, f"{'PASS' if ok else 'FAIL'}\n{json.dumps(r, indent=2)}")
 
 
@@ -255,6 +276,6 @@ def diff_runs(scenario_id: str) -> str:
 
 TOOLS = [
     check_harness, check_health, probe_v1, read_gateway_log, read_worker_log, full_diagnostics, run_sandbox_start, run_sandbox_stop,
-    run_upload, run_job, wait_job, run_cancel, assert_result_image, list_scenarios, get_scenario, run_scenario, diff_runs,
+    run_upload, run_job, wait_job, run_cancel, assert_result_image, assert_result_video, list_scenarios, get_scenario, run_scenario, diff_runs,
     diagnose_job, run_ui_url,
 ]

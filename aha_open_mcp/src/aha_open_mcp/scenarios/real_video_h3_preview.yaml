@@ -1,0 +1,34 @@
+id: real_video_h3_preview
+title: "The real MiniMax H3 model makes a 5 s clip at the preview size; the downloaded FILE has the accepted picture size, 124 frames at 24 fps, a stereo 32 kHz sound track and the AI-generated label (about 5 minutes on an RTX 3090 Ti)"
+covers: "tests/test_minimax_worker_real.py::test_a_job_reports_progress_and_returns_a_video_that_matches_what_was_accepted"
+target: sandbox
+requires_worker: minimax_h3
+preconditions: [real_model_installed]
+side_effects: [creates_job, uses_gpu, loads_model]
+vars: {prompt: "a lighthouse on a cliff at sunset, waves crashing on the rocks, seagulls calling, cinematic", seed: 42}
+steps:
+  - tool: run_job
+    args: {body: {task: video.generate, model: minimax-h3-fl2va, prompt: "${prompt}", params: {seed: "${seed}", short_edge: 352}}}
+  - tool: wait_job
+    args: {timeout_s: 600}
+  - tool: check_result_video
+assert:
+  - {path: submit.http_status, op: eq, value: 202}
+  - {path: job.status, op: eq, value: succeeded}
+  - {path: "job.results[0].kind", op: eq, value: video}
+  - {path: "job.results[0].width", op: eq, value: 608}
+  - {path: "job.results[0].height", op: eq, value: 352}
+  - {path: video.parsed, op: eq, value: true}
+  - {path: video.width, op: eq, value: 608}
+  - {path: video.height, op: eq, value: 352}
+  - {path: video.frames, op: eq, value: 124}
+  - {path: video.fps, op: eq, value: 24.0}
+  - {path: video.audio_channels, op: eq, value: 2}
+  - {path: video.audio_sample_rate, op: eq, value: 32000}
+  - {path: video.comment, op: eq, value: "AI-generated (MiniMax H3)"}
+  - {path: video.size_matches, op: eq, value: true}
+  - {path: video.fps_matches, op: eq, value: true}
+  - {path: video.duration_matches, op: eq, value: true}
+  - {path: video.audio_matches, op: eq, value: true}
+  - {path: video.sha256_matches, op: eq, value: true}
+  - {path: video.bytes_match, op: eq, value: true}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 
 from conftest import Api, image_job, new_client_token
 
@@ -90,3 +91,87 @@ def test_input_roles_and_media_types_are_checked(gw, api):
     assert generate_with_input.status_code == 400  # image.generate takes no inputs
     two_sources = api.job({**_edit(image_upload), "inputs": [{"role": "source", "upload_id": image_upload}] * 2})
     assert two_sources.status_code == 400
+
+
+def test_part_numbers_run_from_zero_to_ceil_minus_one_and_a_part_can_be_resent(make_gateway):
+    """docs/03_api_v1.md section 2 'Upload rules': numbering, exact sizes, re-sending, complete twice, parts after complete."""
+    gw = make_gateway(part_size=1024)
+    api = Api(gw.base, gw.tokens["local"])
+    data = os.urandom(2500)  # ceil(2500 / 1024) = 3 parts: 1024 + 1024 + 452
+    sha = hashlib.sha256(data).hexdigest()
+    uid = api.post("/v1/uploads", json={"bytes": len(data), "sha256": sha, "media_type": "image/png"}).json()["upload_id"]
+    assert api.put(f"/v1/uploads/{uid}/parts/3", content=data[:452]).status_code == 400  # one past the last number
+    assert api.put(f"/v1/uploads/{uid}/parts/-1", content=data[:1024]).status_code in (400, 404, 422)
+    assert api.put(f"/v1/uploads/{uid}/parts/2", content=data[2048:]).status_code == 204  # the last part is the remainder
+    assert api.put(f"/v1/uploads/{uid}/parts/2", content=data[:1024]).status_code == 400  # ... not a full part
+    assert api.put(f"/v1/uploads/{uid}/parts/0", content=b"\0" * 1024).status_code == 204
+    assert api.put(f"/v1/uploads/{uid}/parts/0", content=data[:1024]).status_code == 204  # re-sent: the new bytes win
+    assert api.put(f"/v1/uploads/{uid}/parts/1", content=data[1024:2048]).status_code == 204
+    done = api.post(f"/v1/uploads/{uid}/complete")
+    assert done.status_code == 200, done.text  # the sha256 matches only if part 0 was really replaced
+    assert api.post(f"/v1/uploads/{uid}/complete").status_code == 200  # again: same answer
+    late = api.put(f"/v1/uploads/{uid}/parts/0", content=data[:1024])
+    assert late.status_code == 400 and late.json()["error"]["code"] == "invalid_request"  # no parts after complete
+
+
+def test_a_queued_job_keeps_its_inputs_when_the_upload_expires(make_gateway, monkeypatch):
+    """docs/03_api_v1.md section 2: the upload id expires, a job already created does not lose what it was given.
+
+    The worker refuses a job whose input file is gone, so `succeeded` proves the file was still there when it ran.
+    """
+    monkeypatch.setenv("AHA_FAKE_STEP_S", "0.05")  # the blocker (200 steps) must still be running after the sweep
+    gw = make_gateway(upload_ttl_s=1)
+    api = Api(gw.base, gw.tokens["local"])
+    blocker = api.job(image_job("p __slow")).json()["id"]
+    api.wait(blocker, states=("running",))
+    upload_id = api.upload(b"the source picture")
+    queued = api.job(_edit(upload_id, width=256, height=256)).json()["id"]
+    time.sleep(1.2)
+    gw.server.config.app.state.scheduler.sweep()  # what the janitor does every 20 s
+    assert not (gw.cfg.data_dir / "uploads" / upload_id).exists()  # the upload itself did expire
+    assert api.job(_edit(upload_id, width=256, height=256)).status_code == 404  # and its id is gone
+    assert api.get(f"/v1/jobs/{queued}").json()["status"] == "queued"
+    api.post(f"/v1/jobs/{blocker}/cancel")
+    done = api.wait(queued)
+    assert done["status"] == "succeeded", done["error"]
+
+
+def test_a_finished_job_keeps_no_copy_of_its_inputs(gw, api):
+    needle = b"needle-private-picture-" + os.urandom(16)
+    upload_id = api.upload(needle)
+    done = api.wait(api.job(_edit(upload_id, width=256, height=256)).json()["id"])
+    assert done["status"] == "succeeded"
+    jobdir = gw.cfg.data_dir / "jobs" / done["id"]
+    deadline = time.monotonic() + 5  # the lane removes the inputs just after it records the result
+    while any(needle in p.read_bytes() for p in jobdir.iterdir() if p.is_file()):
+        assert time.monotonic() < deadline, "the job folder still holds the client's input after the job ended"
+        time.sleep(0.02)
+
+
+def test_an_upload_that_vanishes_while_the_job_is_created_is_404_and_leaves_no_job_folder(gw, api):
+    upload_id = api.upload(b"gone in a moment")
+    (gw.cfg.data_dir / "uploads" / upload_id / "data").unlink()  # the row is still there: the shape of the janitor winning the race
+    refused = api.job(_edit(upload_id, width=256, height=256))
+    assert refused.status_code == 404 and refused.json()["error"]["code"] == "not_found", refused.text
+    assert not any((gw.cfg.data_dir / "jobs").iterdir())
+
+
+def test_inputs_are_copied_where_the_file_system_has_no_hard_links(gw, api, monkeypatch):
+    def no_hard_links(*_args, **_kwargs):
+        raise OSError("this file system has no hard links")
+
+    monkeypatch.setattr("aha_open.app.os.link", no_hard_links)  # the gateway runs in this process
+    upload_id = api.upload(b"a picture on exFAT")
+    done = api.wait(api.job(_edit(upload_id, width=256, height=256)).json()["id"])
+    assert done["status"] == "succeeded", done["error"]
+
+
+def test_too_many_stored_uploads_answer_busy_with_retry_after(gw, api):
+    body = {"bytes": 10, "sha256": "a" * 64, "media_type": "image/png"}
+    answers = [api.post("/v1/uploads", json=body) for _ in range(33)]
+    assert [r.status_code for r in answers[:32]] == [201] * 32
+    refused = answers[32]
+    assert refused.status_code == 429 and refused.json()["error"]["code"] == "busy"
+    assert int(refused.headers["retry-after"]) == 30 and refused.json()["error"]["retry_after_s"] == 30
+    other = Api(gw.base, new_client_token(gw, "second"))  # the cap is per client
+    assert other.post("/v1/uploads", json=body).status_code == 201
