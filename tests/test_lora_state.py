@@ -1,4 +1,4 @@
-"""The Qwen worker must apply a LoRA completely or refuse it (docs/05_models.md section 3.2).
+"""The Qwen worker must apply a LoRA completely or refuse it (docs/product/05_models.md section 3.2).
 
 Root cause this guards: a real ai-toolkit LoRA fuses two layers into `img_mlp.gate_up`; peft dropped those tensors and
 only logged it, so the LoRA ran at five sixths strength with no error. `lora_state_for` runs in the worker's own

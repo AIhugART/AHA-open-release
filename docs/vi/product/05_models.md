@@ -320,7 +320,7 @@ Cổng chống tái phát: `tests/test_lora_state.py` (4 test, đã sabotage-ver
 
 Hệ quả cho manifest: bảng cỡ của Qwen có hai hạng — `1k` (~1 MP cùng tỉ lệ, nhanh; ✅ cả 7 cỡ đã sinh ảnh thật) và `native`
 (cỡ gốc ~4 MP, chậm khi VRAM < ~27 GiB). Ảnh Qwen trả về luôn là PNG RGBA (cả khi không yêu cầu trong suốt).
-Cloudflare Tunnel (giới hạn thân request, timeout): **⬜ chưa đo** — cần tài khoản Cloudflare thật, xem `docs/06_deployment.md`.
+Cloudflare Tunnel (giới hạn thân request, timeout): **⬜ chưa đo** — cần tài khoản Cloudflare thật, xem `docs/product/06_deployment.md`.
 
 Model không chạy được trên GPU nào trong bảng ⇒ manifest báo `unsupported_hardware` trên máy đó, kèm phần cứng tối
 thiểu đã đo được ở nơi khác (nếu có).
@@ -346,7 +346,7 @@ Bộ nhớ của worker, đo sau đó từ chính các dòng giai đoạn của 
 3. Tạo `workers/<tên>/` với `pyproject` ghim đúng upstream.
 4. Khai khả năng trong manifest đúng những gì đã đo; chạy bộ kiểm hợp chuẩn.
 
-### Các biến thể ConvRot (tóm tắt; bản đầy đủ có trích dẫn nguyên văn và số đo ở `docs/05_models.md` §1.1 và §3.4)
+### Các biến thể ConvRot (tóm tắt; bản đầy đủ có trích dẫn nguyên văn và số đo ở `docs/product/05_models.md` §1.1 và §3.4)
 
 - **Nguồn (ghim revision, kích thước, sha256):** cấu hình/tokenizer/VAE từ `Qwen/Qwen-Image-2.1`; text encoder INT8 ConvRot từ `Comfy-Org/Qwen-Image-2.1`; transformer từ `JoaoZaokk/ConvRot-Mixed-INT8-for-Qwen-Image-2.1`.
 - **Giấy phép:** nhà phát hành nêu: *Non-commercial use only (Qwen Research License)*; các file là bản đã sửa (lượng tử hoá), không phải model gốc. Lệnh cài in lại NOTICE của họ; khoá giấy phép và `commercial_use: not_allowed` không đổi.

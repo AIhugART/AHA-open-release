@@ -5,7 +5,7 @@ Prints ONE json line prefixed with `P0_RESULT ` on success. Prompts are never lo
 
   python p0_bench.py --variant int8 --size 1024
 
-(The BF16 cells of docs/05_models.md section 3 were measured with an earlier version of this tool; BF16 is no longer offered.)
+(The BF16 cells of docs/product/05_models.md section 3 were measured with an earlier version of this tool; BF16 is no longer offered.)
 """
 from __future__ import annotations
 

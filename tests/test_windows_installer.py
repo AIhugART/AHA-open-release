@@ -65,8 +65,8 @@ def test_the_installer_file_name_carries_the_version_it_installs():
 
 def make_wheel(path: Path, version="0.1.0.dev0", requires=(), extra: dict[str, int] | None = None, drop=()) -> Path:
     members = {
-        "aha_open/ui/index.html": b"<html>", "aha_open/launcher.py": b"x", "aha_open/workers/qwen_image/worker.py": b"x",
-        "aha_open/workers/qwen_image/uv.lock": b"x",
+        "aha_open/ui/index.html": b"<html>", "aha_open/launcher.py": b"x",
+        **{f"aha_open/workers/{name}": b"x" for name in b.worker_files()},
     }
     meta = f"Metadata-Version: 2.1\nName: aha-open\nVersion: {version}\n" + "".join(f"Requires-Dist: {r}\n" for r in requires)
     with zipfile.ZipFile(path, "w") as zf:
@@ -96,6 +96,21 @@ def test_a_gateway_wheel_that_needs_torch_or_its_family_is_a_problem(tmp_path, d
 def test_a_wheel_without_the_web_page_or_the_launcher_is_a_problem(tmp_path):
     problems = b.check_wheel(make_wheel(tmp_path / "a.whl", drop=("aha_open/ui/index.html", "aha_open/launcher.py")), "0.1.0.dev0")
     assert any("index.html" in p for p in problems) and any("launcher.py" in p for p in problems)
+
+
+def test_a_wheel_without_a_module_a_worker_imports_is_a_problem(tmp_path):
+    missing = ("aha_open/workers/minimax_h3/h3_runner.py", "aha_open/workers/qwen_image/qwen_models.py")
+    problems = b.check_wheel(make_wheel(tmp_path / "a.whl", drop=missing), "0.1.0.dev0")
+    assert all(any(name in p for p in problems) for name in missing), problems
+
+
+def test_nothing_from_an_earlier_build_can_reach_the_next_wheel(tmp_path):
+    stale = tmp_path / "build" / "lib" / "aha_open" / "workers" / "qwen_image" / "deleted_module.py"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("")
+    (tmp_path / "build" / "installer").mkdir()
+    b.remove_build_leftovers(tmp_path)
+    assert not stale.exists() and (tmp_path / "build" / "installer").exists()
 
 
 def test_weights_are_recognised_by_size_not_by_suffix_alone():

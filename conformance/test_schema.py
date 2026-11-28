@@ -10,7 +10,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schema" / "aha_provider_v1.openapi.yaml"
-DOC = ROOT / "docs" / "03_api_v1.md"
+DOC = ROOT / "docs" / "product" / "03_api_v1.md"
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +23,7 @@ def _norm(path: str) -> str:
 
 
 def _doc_routes() -> set[tuple[str, str]]:
-    """(METHOD, path) pairs from the route table of docs/03_api_v1.md section 2."""
+    """(METHOD, path) pairs from the route table of docs/product/03_api_v1.md section 2."""
     text = DOC.read_text(encoding="utf-8")
     section = text.split("## 2. Route", 1)[1].split("\n## ", 1)[0]
     pairs: set[tuple[str, str]] = set()
@@ -123,7 +123,7 @@ def _doc() -> str:
     ],
 )
 def test_doc_states_the_contracts_the_server_enforces(needle: str) -> None:
-    """Section 'Upload rules', auth matrix, Retry-After, busy and cancel wording must stay in docs/03_api_v1.md."""
+    """Section 'Upload rules', auth matrix, Retry-After, busy and cancel wording must stay in docs/product/03_api_v1.md."""
     assert needle in _doc()
 
 

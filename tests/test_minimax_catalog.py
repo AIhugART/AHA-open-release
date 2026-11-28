@@ -110,7 +110,7 @@ def test_the_manifest_declares_the_measured_variant_and_size_tiers(monkeypatch, 
 def test_the_vram_rule_offers_h3_from_16_gb_cards_with_the_build_that_runs_there(tmp_path, monkeypatch):
     from aha_open.hardware import recommend_variant_for
 
-    assert H3.min_vram_mib == {"int8": 23552, "mixed": 18432, "nvfp4": 15872}  # docs/05_models.md section 2
+    assert H3.min_vram_mib == {"int8": 23552, "mixed": 18432, "nvfp4": 15872}  # docs/product/05_models.md section 2
     for gpu_mib, expected in ((8192, None), (12288, None), (16376, "nvfp4"), (20480, "mixed"), (24564, "mixed")):
         assert recommend_variant_for("minimax-h3-fl2va", gpu_mib, 32.0)[0] == expected, gpu_mib
     reason = recommend_variant_for("minimax-h3-fl2va", 12288, 32.0)[1]

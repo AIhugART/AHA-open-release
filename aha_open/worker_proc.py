@@ -1,4 +1,4 @@
-"""A worker child process spoken to over stdin/stdout, one JSON object per line (docs/04_architecture.md section 2).
+"""A worker child process spoken to over stdin/stdout, one JSON object per line (docs/product/04_architecture.md section 2).
 
 No network port is opened for workers. Pixels never travel over the pipe: the gateway puts inputs in the job directory
 and the worker writes outputs there. The prompt is never sent over the pipe or logged either (it is in request.json).

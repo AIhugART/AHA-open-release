@@ -11,7 +11,7 @@ Where the token comes from (first match wins):
      this is what lets the `local` profile work without pasting anything).
 The token is never printed or logged by this file. Do not add it to log lines in your own code either.
 
-Specification: docs/03_api_v1.md. Everything here follows it: sizes are never stretched, parts are numbered from 0, a job is
+Specification: docs/product/03_api_v1.md. Everything here follows it: sizes are never stretched, parts are numbered from 0, a job is
 a job + poll, and `busy` answers are waited out with `retry_after_s`.
 """
 
@@ -65,7 +65,7 @@ class Client:
         self.base_url = (base_url or os.environ.get("AHA_OPEN_URL") or DEFAULT_URL).rstrip("/")
         self._token = token or find_token()
         self.timeout = timeout
-        # `lan` profile: pass the server's certificate (docs/06_deployment.md) as cafile.
+        # `lan` profile: pass the server's certificate (docs/product/06_deployment.md) as cafile.
         # `internet` profile: extra_headers={"CF-Access-Client-Id": ..., "CF-Access-Client-Secret": ...}.
         self._ssl = ssl.create_default_context(cafile=cafile) if self.base_url.startswith("https") else None
         self._extra = dict(extra_headers or {})

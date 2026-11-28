@@ -4,7 +4,7 @@ info:
   version: "1.0"
   description: >
     Neutral /v1 API for AI providers that run image/video/audio models on local, LAN or remote hardware.
-    Source of truth for humans: docs/03_api_v1.md. This file is the machine-readable form.
+    Source of truth for humans: docs/product/03_api_v1.md. This file is the machine-readable form.
 servers:
   - url: http://127.0.0.1:8890
 security:

@@ -6,9 +6,12 @@
 chúng qua một API HTTP chuẩn (`/v1`). Ứng dụng client đầu tiên là **AHA Studio**: AHA Studio gửi yêu cầu tạo ảnh hoặc
 video tới AHA open và nhận kết quả về kho của nó, về Photoshop (AHA Paint), Premiere (AHA Clip) hoặc AHA Workflow.
 
-> **Trạng thái (2026-11-26):** bản pre-release `0.1.0.dev2`, có trình cài Windows. Đã chạy thật trên một máy (RTX 3090 Ti
+> **Đừng dùng trình cài `0.1.0.dev2`:** bản đó thiếu mã worker nên Qwen-Image-2.1 ConvRot và MiniMax H3 không chạy được. Dùng
+> `0.1.0.dev3` trở lên; cài đè lên dev2 vẫn giữ model và cấu hình.
+>
+> **Trạng thái (2026-11-28):** bản pre-release `0.1.0.dev3`, có trình cài Windows. Đã chạy thật trên một máy (RTX 3090 Ti
 > 24 GiB, Windows): ảnh với Qwen-Image-2.1 và video với MiniMax H3 qua gateway. **Chưa thử:** hồ sơ `lan` từ máy thứ hai và
-> hồ sơ `internet` (cần tài khoản Cloudflare thật). Mức bằng chứng từng phần: [docs/05_models.md](docs/vi/05_models.md) §3.
+> hồ sơ `internet` (cần tài khoản Cloudflare thật). Mức bằng chứng từng phần: [docs/product/05_models.md](docs/vi/product/05_models.md) §3.
 
 ## Bắt đầu nhanh trên Windows (trình cài)
 
@@ -20,7 +23,7 @@ video tới AHA open và nhận kết quả về kho của nó, về Photoshop (
    trang hiển thị). Cần GPU NVIDIA từ khoảng 10 GiB VRAM và khoảng 25 GB ổ đĩa trống.
 
 Đã thử thật trên một máy (RTX 3090 Ti, Windows 11): cài, tải model qua trang, sinh ảnh chuẩn (cùng byte với lần đo trước), gỡ cài. **Chưa thử:**
-hộp thoại cài tương tác, cảnh báo SmartScreen, máy chưa có Python. Chưa hỗ trợ macOS ở v1. Chi tiết: [docs/06_deployment.md](docs/06_deployment.md) mục 0.1.
+hộp thoại cài tương tác, cảnh báo SmartScreen, máy chưa có Python. Chưa hỗ trợ macOS ở v1. Chi tiết: [docs/product/06_deployment.md](docs/product/06_deployment.md) mục 0.1.
 
 ## Bắt đầu nhanh (từ mã nguồn, cần `uv`)
 
@@ -44,7 +47,7 @@ Trên máy chạy AHA open, trang web cũng thêm/gỡ file LoRA được (**Man
 | Model | Việc | Ghi chú |
 |---|---|---|
 | Qwen-Image-2.1 | Tạo ảnh từ chữ, sửa ảnh (≤10 ảnh tham chiếu), ảnh trong suốt RGBA, LoRA | Giấy phép phi thương mại (Qwen Research License) |
-| MiniMax H3 | Tạo video có âm thanh stereo | **Hoãn**; chỉ dự kiến dùng bản lượng tử hoá cộng đồng (không dùng bản đầy đủ ~133 GB), chưa thử; xem [docs/05_models.md](docs/vi/05_models.md) §2.0 |
+| MiniMax H3 | Tạo video có âm thanh stereo | **Hoãn**; chỉ dự kiến dùng bản lượng tử hoá cộng đồng (không dùng bản đầy đủ ~133 GB), chưa thử; xem [docs/product/05_models.md](docs/vi/product/05_models.md) §2.0 |
 
 ## Ba cách chạy
 
@@ -59,14 +62,14 @@ Trên máy chạy AHA open, trang web cũng thêm/gỡ file LoRA được (**Man
 | File | Nội dung |
 |---|---|
 | [docs/00_index.md](docs/vi/00_index.md) | Bản đồ tài liệu |
-| [docs/01_overview.md](docs/vi/01_overview.md) | AHA open là gì, ranh giới, nguyên tắc |
-| [docs/03_api_v1.md](docs/vi/03_api_v1.md) | Đặc tả API `/v1` |
-| [docs/04_architecture.md](docs/vi/04_architecture.md) | Gateway, worker, hàng đợi, quản lý VRAM |
-| [docs/05_models.md](docs/vi/05_models.md) | Qwen-Image-2.1, MiniMax H3: khả năng, phần cứng, giấy phép |
-| [docs/06_deployment.md](docs/vi/06_deployment.md) | Cài đặt cho `local`, `lan`, `internet` (Cloudflare Tunnel) |
-| [docs/07_security.md](docs/vi/07_security.md) | Mô hình đe doạ và luật bảo mật |
+| [docs/product/01_overview.md](docs/vi/product/01_overview.md) | AHA open là gì, ranh giới, nguyên tắc |
+| [docs/product/03_api_v1.md](docs/vi/product/03_api_v1.md) | Đặc tả API `/v1` |
+| [docs/product/04_architecture.md](docs/vi/product/04_architecture.md) | Gateway, worker, hàng đợi, quản lý VRAM |
+| [docs/product/05_models.md](docs/vi/product/05_models.md) | Qwen-Image-2.1, MiniMax H3: khả năng, phần cứng, giấy phép |
+| [docs/product/06_deployment.md](docs/vi/product/06_deployment.md) | Cài đặt cho `local`, `lan`, `internet` (Cloudflare Tunnel) |
+| [docs/product/07_security.md](docs/vi/product/07_security.md) | Mô hình đe doạ và luật bảo mật |
 
 ## Giấy phép
 
 Mã của AHA open: **Apache-2.0** (xem `LICENSE`, `NOTICE`; danh sách giấy phép phụ thuộc: `THIRD_PARTY_LICENSES.md`). Dùng miễn phí. **Trọng số model không nằm trong repo này**; mỗi model có giấy phép
-riêng, người vận hành tự tải về và tự chịu trách nhiệm tuân thủ. Xem [docs/05_models.md](docs/vi/05_models.md).
+riêng, người vận hành tự tải về và tự chịu trách nhiệm tuân thủ. Xem [docs/product/05_models.md](docs/vi/product/05_models.md).

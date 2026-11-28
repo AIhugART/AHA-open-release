@@ -32,7 +32,7 @@ Thumbs.db
 reference/
 workers/*/.venv/
 
-# Measurement outputs (images, logs) - the numbers live in docs/05_models.md
+# Measurement outputs (images, logs) - the numbers live in docs/product/05_models.md
 workers/*/p0_out*/
 .playwright-mcp/
 aha_open_mcp/runs/

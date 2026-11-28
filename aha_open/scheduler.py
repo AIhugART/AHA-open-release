@@ -1,4 +1,4 @@
-"""One lane per GPU: a fair queue, one resident model at a time, and the job state machine (docs/04_architecture.md section 3).
+"""One lane per GPU: a fair queue, one resident model at a time, and the job state machine (docs/product/04_architecture.md section 3).
 
 Design decisions: lanes are plain threads talking to worker processes through WorkerProc, not asyncio
 subprocesses - asyncio subprocess support depends on the event-loop flavour uvicorn picks on Windows.

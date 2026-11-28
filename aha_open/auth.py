@@ -1,4 +1,4 @@
-"""Client tokens, the local token file and pairing (docs/07_security.md rules 4, 11, 12).
+"""Client tokens, the local token file and pairing (docs/product/07_security.md rules 4, 11, 12).
 
 A token is shown exactly once and stored as sha256. A pairing token waits in the enrolls table until the client's
 first poll takes it; that read wipes it.

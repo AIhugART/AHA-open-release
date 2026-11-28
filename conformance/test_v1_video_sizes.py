@@ -1,4 +1,4 @@
-"""A video model that declares exact sizes: the accepted params are complete, and the size of the result is checked (docs/03_api_v1.md).
+"""A video model that declares exact sizes: the accepted params are complete, and the size of the result is checked (docs/product/03_api_v1.md).
 
 Uses the internal ``example-video-sized`` fake model, which has the shape of what MiniMax H3 declares (sizes, a frame grid, steps).
 """

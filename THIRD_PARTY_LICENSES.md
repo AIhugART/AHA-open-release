@@ -15,7 +15,7 @@ libraries comes from PyTorch's distribution model and was not re-verified here).
 - The PyTorch CUDA wheels used by the worker embed NVIDIA CUDA runtime libraries under NVIDIA's own license. AHA open
   does not redistribute them: the operator's machine downloads them from PyTorch when the worker environment is created.
 
-Model weights are not part of this repository and are not listed here; see `docs/05_models.md` for each model's license.
+Model weights are not part of this repository and are not listed here; see `docs/product/05_models.md` for each model's license.
 
 **The MiniMax H3 worker is different (checked 2026-11-25).** Its environment (`workers/minimax_h3/uv.lock`, created on the
 operator's machine by `aha-open models install minimax-h3-fl2va`) contains PyAV, which writes the mp4. PyAV's own code is
@@ -125,7 +125,7 @@ note at the top about the FFmpeg/x264/x265 libraries inside the `av` wheel.
 | Package | Version | License (as declared in its metadata) |
 |---|---|---|
 | accelerate | 1.15.0 | Apache |
-| aha-open | 0.1.0.dev2 | Apache-2.0 |
+| aha-open | 0.1.0.dev3 | Apache-2.0 |
 | annotated-doc | 0.0.7 | MIT |
 | annotated-types | 0.8.0 | MIT |
 | anyio | 4.16.0 | MIT |

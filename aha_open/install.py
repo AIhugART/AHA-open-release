@@ -20,6 +20,7 @@ from .catalog import (
     WORKERS_DIR,
     detect_gpus,
     download_incomplete,
+    env_marker,
     variant_installed,
     weights_dir,
     worker_python,
@@ -27,7 +28,7 @@ from .catalog import (
 from .config import Config, ModelConfig, render
 from .hardware import detect_ram_gib, fit_for, free_disk_gib, gpu_budget_mib, recommend_variant_for
 
-# MiniMax H3 comes from three repositories (docs/05_models.md section 2.0): the community transformer and VAEs (Abiray), the text
+# MiniMax H3 comes from three repositories (docs/product/05_models.md section 2.0): the community transformer and VAEs (Abiray), the text
 # encoder Abiray does not have (Comfy-Org), and the small configuration/tokenizer files of the official repository. Each part names
 # its files exactly; the large ones carry the sha256 the publisher's Hub records, checked after the download.
 _H3_OFFICIAL = {
@@ -81,7 +82,7 @@ def _h3_plan(model_id: str, model: str) -> dict:
     return plans
 
 
-# Qwen-Image-2.1, ConvRot builds (docs/05_models.md section 3): the official repository gives the configs, tokenizer and VAE, Comfy-Org
+# Qwen-Image-2.1, ConvRot builds (docs/product/05_models.md section 3): the official repository gives the configs, tokenizer and VAE, Comfy-Org
 # the INT8 ConvRot text encoder, JoaoZaokk the transformer. The first two parts are the same for all three variants and live in one
 # folder, so a second variant downloads only its own transformer file.
 _QWEN_OFFICIAL = {
@@ -192,7 +193,7 @@ def install_model(cfg: Config, args: argparse.Namespace) -> int:
         _say(f"error: unknown model {args.model!r}")
         return 2
     if plan is None:
-        _say(f"{spec.display_name} cannot be installed by this version yet (deferred; see docs/05_models.md).")
+        _say(f"{spec.display_name} cannot be installed by this version yet (deferred; see docs/product/05_models.md).")
         return 2
 
     lic = spec.license
@@ -243,17 +244,17 @@ def install_model(cfg: Config, args: argparse.Namespace) -> int:
     else:
         target = weights_dir(cfg, ModelConfig(id=args.model, worker=spec.family, variant=variant))
         earlier = _recorded_variants(target)  # before the download starts: it removes install.json
-        free = free_disk_gib(target)
-        need_gib = info["disk_gib"] if "parts" not in info else min(info["disk_gib"], _missing_gib(info["parts"], target) + 1)
-        if free < need_gib * 1.1:
-            _say(f"error: {need_gib:.0f} GB are needed for {variant} but only {free:.0f} GB are free where {target} lives")
-            return 2
         # `model_index.json` is among the first files to arrive, so it proves nothing: after an interrupted download the big files are
         # missing. Unfinished = a file still marked incomplete, or hf began downloading here and no install.json says it ended.
         started_by_hf = (target / HF_DOWNLOAD_STATE).is_dir()
         unfinished = download_incomplete(target) or (started_by_hf and not (target / "install.json").exists())
         files_missing = "parts" in info and _missing_gib(info["parts"], target) > 0  # e.g. the text model is here, the Ref2VA file is not
         if unfinished or files_missing or not (target / "model_index.json").exists():
+            free = free_disk_gib(target)  # asked only when something is fetched: setting up the engine alone needs no model space
+            need_gib = info["disk_gib"] if "parts" not in info else min(info["disk_gib"], _missing_gib(info["parts"], target) + 1)
+            if free < need_gib * 1.1:
+                _say(f"error: {need_gib:.0f} GB are needed for {variant} but only {free:.0f} GB are free where {target} lives")
+                return 2
             (target / "install.json").unlink(missing_ok=True)  # a download starts: an older record must not vouch for it
             if "parts" in info:  # resumes too: snapshot_download skips files already complete
                 code = _download_parts(info["parts"], target)
@@ -491,6 +492,11 @@ def _make_worker_env(cfg: Config, family: str) -> int:
         return 2
     _say(f"Creating the {family} worker environment in {venv} (pinned, downloads PyTorch; several minutes)...")
     env = {**os.environ, "UV_PROJECT_ENVIRONMENT": str(venv)}  # install into our venv, never into the package folder
+    marker = env_marker(cfg, family)  # removed only when every step succeeded: a failed or cancelled build does not count
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("", encoding="utf-8")
+    if venv.exists():  # only reached when there is no usable environment: what is here is a build that did not finish
+        shutil.rmtree(venv)
     for cmd in (
         [uv, "venv", "--python", "3.13", str(venv)],
         # --frozen: exactly the versions in the worker's uv.lock; a lock that no longer matches is an error, not a re-resolve
@@ -500,4 +506,5 @@ def _make_worker_env(cfg: Config, family: str) -> int:
         if done.returncode:
             _say(f"error: `uv {' '.join(cmd[1:3])}` failed (exit {done.returncode}); the lines above say why. https://docs.astral.sh/uv/")
             return 2
+    marker.unlink()
     return 0

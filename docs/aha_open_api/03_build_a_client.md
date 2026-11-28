@@ -2,7 +2,7 @@
 
 For developers writing an app (desktop, mobile, server, script) that uses AHA open. Read [02_concepts.md](02_concepts.md) first. A complete,
 tested client in about 200 lines of standard-library Python is [examples/python/aha_open_client.py](examples/python/aha_open_client.py);
-a one-file Node version is [examples/node/generate.mjs](examples/node/generate.mjs). Definitions are in [`../03_api_v1.md`](../03_api_v1.md).
+a one-file Node version is [examples/node/generate.mjs](examples/node/generate.mjs). Definitions are in [`../03_api_v1.md`](../product/03_api_v1.md).
 
 ## The flow
 
@@ -36,11 +36,11 @@ sentences for the user.
    (`not_installed` → the operator must install it; `loading` → wait; `unsupported_hardware`; `error`).
 2. **Sizes:** offer only `capabilities.sizes`. Send `width` and `height` together exactly as listed, or `aspect_ratio` (the server takes the first
    matching entry, the smaller "1k" tier). A size not in the list is refused with `400` — the server never stretches. Entries with `tier: "native"`
-   are the model's own larger size and need far more VRAM and time (for Qwen-Image-2.1: measured 269–326 s per image and 26.9 GiB, [`../05_models.md`](../05_models.md) §3.1).
+   are the model's own larger size and need far more VRAM and time (for Qwen-Image-2.1: measured 269–326 s per image and 26.9 GiB, [`../05_models.md`](../product/05_models.md) §3.1).
    **Video sizes:** a video model lists its sizes the same way, with a `short_edge` in each entry. Send `aspect_ratio` and `short_edge` of the entry the
    user chose (MiniMax H3: `16:9` with `short_edge` 768 → 1344×768 `native`, or 352 → 608×352 `preview`) and keep `duration_s` inside
    `durations_s` (MiniMax H3: exactly 5). Pair or length not on offer ⇒ `400` listing what is. Show the user a time estimate with the
-   size: about 5 minutes for `preview`, 22 minutes for `native` on an RTX 3090 Ti (measured, [`../05_models.md`](../05_models.md) §2.3);
+   size: about 5 minutes for `preview`, 22 minutes for `native` on an RTX 3090 Ti (measured, [`../05_models.md`](../product/05_models.md) §2.3);
    `variants.<name>.vram_gib` says how much GPU memory each tier needs. **Always send `short_edge`:** left out, `minimax-h3-fl2va`
    makes its largest size. `minimax-h3-ref2va` needs one reference image and offers `preview` only ([07_models.md](07_models.md)).
 3. **Steps:** `capabilities.steps` gives `min`, `max`, `default`. **References:** at most `max_reference_images`. **Mask / transparency / LoRA:** only when

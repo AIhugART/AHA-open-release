@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aha-open"
-version = "0.1.0.dev2"
+version = "0.1.0.dev3"
 description = "Open-source service that runs open image/video models behind the neutral /v1 API"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -25,7 +25,7 @@ download = ["huggingface-hub>=1.0"]
 aha-open = "aha_open.cli:main"
 
 # The worker sources live in `workers/` (each with its own pinned environment) and ship inside the wheel as
-# `aha_open/workers`, so `pip install aha-open` can create a worker environment. Dev-only files are not listed.
+# `aha_open/workers`, so `pip install aha-open` can create a worker environment. Every module ships (tests build the wheel and follow the imports).
 [tool.setuptools]
 packages = ["aha_open", "aha_open.workers"]
 
@@ -34,7 +34,10 @@ packages = ["aha_open", "aha_open.workers"]
 
 [tool.setuptools.package-data]
 aha_open = ["ui/*"]
-"aha_open.workers" = ["*/worker.py", "*/pyproject.toml", "*/uv.lock"]
+"aha_open.workers" = ["*/*.py", "*/pyproject.toml", "*/uv.lock"]
+
+[tool.setuptools.exclude-package-data]
+"aha_open.workers" = ["*/p0_*.py"]  # measurement scripts, developers only
 
 [tool.pytest.ini_options]
 testpaths = ["conformance", "tests"]

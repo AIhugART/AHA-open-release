@@ -1,4 +1,4 @@
-"""Negative tests from docs/07_security.md section 4. Every security rule has a test that proves the refusal.
+"""Negative tests from docs/product/07_security.md section 4. Every security rule has a test that proves the refusal.
 
 Facts: real sockets, real worker subprocesses; the gateway under test is the one `aha-open serve` would start.
 """

@@ -106,6 +106,22 @@ def test_the_rotated_activation_layer_matches_the_float64_reference():
     assert out["unpack_same"]  # the fast nibble unpack agrees with the plain one on every byte value
 
 
+SLICES = r"""
+import convrot
+rows = [17, 100, 4096, 4097, 4109, 4112, 4113, 8192, 8205, 37000]
+print(json.dumps({str(n): convrot.int8_slices(n) for n in rows}))
+"""
+
+
+@needs_env
+def test_no_slice_of_the_integer_product_is_too_short_for_it():
+    """`torch._int_mm` refuses 16 rows or fewer. A real job failed ("got 13") because only the TOTAL was checked: 4096 + 13 rows
+    were cut into a full slice and a 13-row tail."""
+    for rows, slices in run_probe(SLICES).items():
+        assert [a for a, _ in slices] == [0, *[b for _, b in slices[:-1]]] and slices[-1][1] == int(rows)  # contiguous, complete
+        assert all(16 < b - a <= 4096 + 16 for a, b in slices), (rows, slices)
+
+
 # ---------------------------------------------------------------------------------------------- the LoRA path
 
 

@@ -76,9 +76,9 @@ def test_a_yaml_syntax_error_is_invalid_too(tmp_path):
 
 
 def test_a_doc_heading_pointer_resolves_and_a_wrong_anchor_does_not():
-    scenarios.resolve_covers("docs/08_auto_test_and_debug.md#2-boundaries")
+    scenarios.resolve_covers("docs/product/08_auto_test_and_debug.md#2-boundaries")
     with pytest.raises(scenarios.ScenarioError):
-        scenarios.resolve_covers("docs/08_auto_test_and_debug.md#no-such-heading")
+        scenarios.resolve_covers("docs/product/08_auto_test_and_debug.md#no-such-heading")
 
 
 def test_assertion_operators_and_paths():

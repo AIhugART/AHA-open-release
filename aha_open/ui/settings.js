@@ -60,12 +60,13 @@ function adminNotes() {
 const PHASE_TEXT = {
   preparing: "Checking your machine...",
   downloading: "Downloading the model...",
+  verifying: "Checking the model files. This takes a few minutes for large files...",
   creating_environment: "Setting up the model's engine. This installs PyTorch and takes several minutes...",
   finishing: "Finishing...",
 };
 const gb = n => (n / 2 ** 30).toFixed(1);
 const COMMERCIAL = { not_allowed: "Research and evaluation only. Not for commercial use.", allowed_with_conditions: "Commercial use with conditions.", allowed: "Commercial use allowed." };
-const installTimers = {}, refreshedFor = {};
+const installTimers = {}, refreshedFor = {}, settingUpEngine = {};
 
 async function loadSetup() {
   let res;
@@ -182,8 +183,8 @@ function showInstall(mod, ui) {
   ui.go.disabled = !ui.tick.checked || (ui.placeTick !== null && !ui.placeTick.checked) || !!mod.blocker;
   if (s.state === "succeeded") {
     if (refreshedFor[mod.id] === s.finished_at) { // second look, after loadSetup() drew this panel again with the server's own state
-      if (mod.state === "ready") { say(ui.msg, "Downloaded. Press Use this to switch to it.", "ok"); return; } // another variant of a model that already works
-      say(ui.msg, `The download finished, but the model is not ready yet: ${mod.state_detail || mod.state}.`, "err"); return;
+      if (mod.state === "ready") { say(ui.msg, settingUpEngine[mod.id] ? "The engine is set up. You can create with this model now." : "Downloaded. Press Use this to switch to it.", "ok"); return; } // another variant, or the engine, of a model that now works
+      say(ui.msg, `It finished, but the model is not ready yet: ${mod.state_detail || mod.state}.`, "err"); return;
     }
     refreshedFor[mod.id] = s.finished_at;
     say(ui.msg, "Finished. Checking the model...");
@@ -212,7 +213,7 @@ function renderModel(mod) {
   const title = document.createElement("strong"); title.textContent = mod.display_name;
   const lic = mod.license;
   const agree = document.createElement("label"), tick = document.createElement("input"); tick.type = "checkbox";
-  agree.append(tick, ` I have read the licence (${lic.name}) and I accept it. Needed to download another variant.`);
+  agree.append(tick, ` I have read the licence (${lic.name}) and I accept it. Needed to ${mod.engine_missing ? "set up the engine or download another variant" : "download another variant"}.`);
   let place = null, placeTick = null;
   if (mod.requires_territory_confirmation) {
     place = document.createElement("label"); placeTick = document.createElement("input"); placeTick.type = "checkbox";
@@ -225,8 +226,24 @@ function renderModel(mod) {
   const unused = document.createElement("button"); unused.hidden = true; // showInstall() also drives the Download panel's own button
   const ui = { go: unused, stop, tick, placeTick, wrap, fill, msg, key: ":models", sync: null };
   const rows = document.createElement("div"); rows.className = "variants";
+  // The files are here but nothing can run them (a source checkout used before, a copied data folder, a setup that was cut off).
+  let engine = null, setUp = null, why = null;
+  if (mod.engine_missing) {
+    engine = document.createElement("div"); engine.className = "generate-actions";
+    why = document.createElement("p"); why.className = "note";
+    why.textContent = "The model files are on this machine, but the engine that runs them (Python and PyTorch) is not set up. " +
+      "Setting it up needs the internet and takes several minutes; the model is not downloaded again.";
+    setUp = document.createElement("button"); setUp.type = "button"; setUp.textContent = "Set up engine";
+    setUp.addEventListener("click", () => {
+      const have = mod.variants.find(v => v.selected && v.installed) || mod.variants.find(v => v.installed);
+      settingUpEngine[mod.id] = true;
+      rows.dispatchEvent(new CustomEvent("download", { detail: have.name }));
+    });
+    engine.append(setUp);
+  }
   const sync = () => {
     const running = mod.install.state === "running";
+    if (setUp) setUp.disabled = running || !tick.checked || (placeTick !== null && !placeTick.checked);
     for (const b of rows.querySelectorAll("button[data-act=download]")) b.disabled = running || !tick.checked || (placeTick !== null && !placeTick.checked);
     for (const b of rows.querySelectorAll("button[data-act=use], button[data-act=delete]")) b.disabled = running;
   };
@@ -240,7 +257,8 @@ function renderModel(mod) {
     try { await api(`/admin/models/${encodeURIComponent(mod.id)}/install`, { method: "DELETE" }); } catch (e) { say(msg, e.message, "err"); }
     stop.disabled = false;
   });
-  box.append(title, rows, agree, ...(place ? [place] : []), stop, wrap, msg);
+  const consent = [agree, ...(place ? [place] : [])];  // right above the button it unlocks; after the variants otherwise
+  box.append(title, ...(engine ? [why, ...consent, engine, rows] : [rows, ...consent]), stop, wrap, msg);
   rows.addEventListener("download", async ev => {
     const body = { accept_license: lic.key, variant: ev.detail };
     if (placeTick) body.confirm_territory = placeTick.checked;

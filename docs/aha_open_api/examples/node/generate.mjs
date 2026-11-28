@@ -4,7 +4,7 @@
 //   node generate.mjs "a red fox" fox.png --model qwen-image-2.1 --width 1024 --height 1024 --seed 7
 //
 // Settings: AHA_OPEN_URL (default http://127.0.0.1:8890), AHA_OPEN_TOKEN (default: the local token file).
-// Run it from Node, not from a web page: a browser adds an Origin header, and AHA open answers 403 to that (docs/03_api_v1.md section 1).
+// Run it from Node, not from a web page: a browser adds an Origin header, and AHA open answers 403 to that (docs/product/03_api_v1.md section 1).
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";

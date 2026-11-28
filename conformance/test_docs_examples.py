@@ -280,8 +280,8 @@ def _codes(text: str, heading: str, stop: str) -> set[str]:
 
 
 def test_the_troubleshooting_page_covers_exactly_the_error_codes_of_the_spec() -> None:
-    """05's first table and docs/03_api_v1.md section 8 must list the same codes: a new code is not left undocumented, and none is invented."""
-    spec = _codes((ROOT / "docs" / "03_api_v1.md").read_text(encoding="utf-8"), "## 8. Error codes", "\n## ")
+    """05's first table and docs/product/03_api_v1.md section 8 must list the same codes: a new code is not left undocumented, and none is invented."""
+    spec = _codes((ROOT / "docs" / "product" / "03_api_v1.md").read_text(encoding="utf-8"), "## 8. Error codes", "\n## ")
     guide = _codes((API_DOCS / "05_errors_and_troubleshooting.md").read_text(encoding="utf-8"), "## 1. The API answered with an error", "\n## 2.")
     assert spec and guide
     assert guide == spec, f"only in the spec: {sorted(spec - guide)}; only in the guide: {sorted(guide - spec)}"

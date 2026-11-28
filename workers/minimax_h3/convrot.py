@@ -1,6 +1,6 @@
 """Linear layers over the community ConvRot weights of MiniMax H3, computed with comfy-kitchen (Apache-2.0).
 
-Storage, as read from the checkpoints themselves (docs/05_models.md section 2.0):
+Storage, as read from the checkpoints themselves (docs/product/05_models.md section 2.0):
   * ``int8_tensorwise`` + ``convrot``: INT8 weight [N, K], one float32 scale per output row, the weight was rotated with a
     Hadamard transform over groups of 256 input features;
   * ``convrot_w4a4`` with ``linear_dtype: int8``: the same, but the weight holds two signed INT4 values per byte

@@ -204,7 +204,7 @@ def render(cfg: Config) -> str:
 
 
 def validate_for_serve(cfg: Config) -> None:
-    """Refuse to start in a way that would expose the service more than the profile promises (docs/07_security.md section 3)."""
+    """Refuse to start in a way that would expose the service more than the profile promises (docs/product/07_security.md section 3)."""
     host = cfg.listen_host
     if cfg.profile == "local":
         if not is_loopback(host):
@@ -222,7 +222,7 @@ def validate_for_serve(cfg: Config) -> None:
         if not cfg.access_confirmed:
             raise ConfigError(
                 "profile 'internet' needs Cloudflare Access in front of the tunnel; set access_confirmed = true "
-                "once it is configured (see docs/06_deployment.md)"
+                "once it is configured (see docs/product/06_deployment.md)"
             )
         if not cfg.hosts:
             raise ConfigError("profile 'internet' needs `hosts` to list the public hostname the tunnel serves")

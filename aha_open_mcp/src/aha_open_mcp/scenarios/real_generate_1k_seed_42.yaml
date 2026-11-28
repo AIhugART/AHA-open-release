@@ -1,6 +1,6 @@
 id: real_generate_1k_seed_42
 title: "The real Qwen INT8 model draws a 1:1 image with a fixed seed; the downloaded pixels match the job's metadata (the sha256 is recorded, so a later run shows any change)"
-covers: "docs/05_models.md#3-p0-measurements"
+covers: "docs/product/05_models.md#3-p0-measurements"
 target: sandbox
 requires_worker: qwen_image
 preconditions: [real_model_installed]

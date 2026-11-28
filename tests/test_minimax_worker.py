@@ -1,7 +1,7 @@
 """The pure parts of the MiniMax H3 worker's loader, checked in the worker's own environment (they need torch and PyAV).
 
 Skipped when workers/minimax_h3/.venv is not installed, like the Qwen worker's tests. No GPU and no model files are needed: every
-file here is made on the fly, with the shape of the defect each test guards (docs/05_models.md section 2.0, plan section 3.2).
+file here is made on the fly, with the shape of the defect each test guards (docs/product/05_models.md section 2.0, plan section 3.2).
 """
 
 from __future__ import annotations
@@ -192,7 +192,7 @@ cfg["time_embed_dim"] = 8
 with torch.device("meta"):
     model = MiniMaxH3Transformer3DModel(**cfg)
 have = set(model.state_dict())
-# every name the community files use for a block-0 / refiner-0 / top-level tensor, from the real header (see docs/05_models.md section 2.0)
+# every name the community files use for a block-0 / refiner-0 / top-level tensor, from the real header (see docs/product/05_models.md section 2.0)
 src = ["blocks.0.adaln_proj.linear.bias", "blocks.0.adaln_proj.linear.weight", "blocks.0.attn.k_norm.weight", "blocks.0.attn.q_norm.weight",
        "blocks.0.attn.out_proj.weight", "blocks.0.mlp.fc2.weight", "blocks.0.norm1.weight", "blocks.0.norm2.weight",
        "token_refiner.blocks.0.attn.k_norm.weight", "token_refiner.blocks.0.attn.q_norm.weight", "token_refiner.blocks.0.attn.out_proj.weight",

@@ -36,7 +36,7 @@ nằm riêng ở `%LOCALAPPDATA%\AHA-open`.
 - **Model:** trình cài **không** tải model. Trang web hiện *Download a Model* kèm giấy phép; tick ô đồng ý rồi bấm nút (khoảng 18 GB, thêm
   môi trường Python riêng của model). MiniMax H3 nằm trên cùng panel (khoảng 46 GB; giấy phép của nó loại trừ EU, Anh, Hàn Quốc và Mỹ, nên một
   ô tick thứ hai yêu cầu người dùng xác nhận mình không ở các vùng đó; model tham chiếu khi đó chỉ cần thêm ~15 GB). Xem
-  [05_models.md](05_models.md) và `docs/04_architecture.md` mục 6.1. Việc tải bị từ chối trước khi bắt đầu nếu không có GPU NVIDIA (hoặc dưới
+  [05_models.md](05_models.md) và `docs/product/04_architecture.md` mục 6.1. Việc tải bị từ chối trước khi bắt đầu nếu không có GPU NVIDIA (hoặc dưới
   ~10 GiB VRAM), hoặc còn dưới ~20 GB đĩa trống.
 - **Dừng:** Start menu ▸ *Stop AHA open* (dừng luôn lượt tải đang chạy).
 - **Gỡ cài:** Settings ▸ Apps. Dừng gateway trước, **giữ model và cài đặt của bạn** trừ khi bạn trả lời *Yes* cho câu hỏi xoá dữ liệu.
@@ -76,7 +76,12 @@ Mọi bước công khai (đẩy snapshot, GitHub Release) mỗi lần đều l�
 1. **Một phiên bản, không bao giờ dùng lại.** `pyproject.toml` và `aha_open/__init__.py` mang cùng một số (và đã chạy `uv lock`). Số đã công khai không
    bao giờ dùng lại cho các byte khác: một bản phát hành có wheel khác wheel bên trong trình cài của nó là một bản build khác và nhận số mới.
 2. `python windows_installer/build_installer.py --smoke` (cây sạch, test, rồi trình cài thật được cài, chạy và gỡ).
-3. `python windows_installer/build_installer.py --check-tag v<phiên bản>`; `gh auth status`.
+3. **Chạy job thật từ chính file `.exe` (bắt buộc).** `python windows_installer/release_smoke.py --installer dist/AHA-Open-Setup-<phiên bản>.exe
+   --weights <thư mục dữ liệu>/models --accept-license qwen-research --accept-license minimax-h3 --confirm-territory` cài file đó vào một thư
+   mục tạm sạch, dựng từng engine qua route của trang web và chạy một job thật cho mỗi họ model và loại bản (Qwen INT8, Qwen INT8 ConvRot,
+   MiniMax H3). Cần GPU và trọng số đã có trên đĩa (được hard link, không chép), và từ chối chạy trên máy đã cài AHA open. Xem ba kết quả
+   trong `dist/release-smoke/`. Sau đó `python windows_installer/build_installer.py --check-release v<phiên bản>` phải báo `OK` (từ chối nếu
+   trình cài đã dựng lại sau khi chạy job, hoặc thiếu job), và `gh auth status`. `--from-wheel` là cách chạy cho người phát triển, không được tính.
 4. *(công khai)* `python tools/release/snapshot.py OUT_DIR` ghi cây công khai từ `HEAD` (chỉ byte đã commit; nó lỗi nếu một thư mục cấp cao nhất chưa được
    phân loại trong `tools/release/`); đẩy nó lên repo phát hành công khai.
 5. *(công khai)* **Tải lên trước, rồi mới nói ở nơi khác:** `gh release create v<phiên bản> --repo <repo công khai> --prerelease --notes-file NOTES

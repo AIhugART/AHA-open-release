@@ -1,6 +1,6 @@
 """Linear layers over the community ConvRot weights of MiniMax H3, computed with comfy-kitchen (Apache-2.0).
 
-Storage, as read from the checkpoints themselves (docs/05_models.md section 2.0):
+Storage, as read from the checkpoints themselves (docs/product/05_models.md section 2.0):
   * ``int8_tensorwise`` + ``convrot``: INT8 weight [N, K], one float32 scale per output row, the weight was rotated with a
     Hadamard transform over groups of 256 input features;
   * ``convrot_w4a4`` with ``linear_dtype: int8``: the same, but the weight holds two signed INT4 values per byte
@@ -44,6 +44,17 @@ def unpack_int4_fast(packed: torch.Tensor) -> torch.Tensor:
 def int8_tensor_cores(device: torch.device) -> bool:
     """Turing (7.5) and newer have INT8 tensor cores; ``torch._int_mm`` needs them to be worth using."""
     return torch.cuda.get_device_capability(device) >= (7, 5)
+
+
+INT_MM_MIN_ROWS = 17  # `torch._int_mm` refuses a left operand of 16 rows or fewer
+
+
+def int8_slices(rows: int) -> list[tuple[int, int]]:
+    """[start, stop) slices of a long input for the integer product. A tail too short for it joins the slice before."""
+    starts = list(range(0, rows, CHUNK_ROWS))
+    if len(starts) > 1 and rows - starts[-1] < INT_MM_MIN_ROWS:
+        starts.pop()
+    return list(zip(starts, [*starts[1:], rows]))
 
 
 def convrot_matmul(
@@ -141,8 +152,8 @@ class ConvRotLinear(nn.Module):
         h = hadamard(CONVROT_GROUP, x.device).to(x.dtype)
         rotated = (x.reshape(-1, k // CONVROT_GROUP, CONVROT_GROUP) @ h).reshape(-1, k)
         weight = unpack_int4_fast(self.weight) if self.packed4 else self.weight
-        if x.is_cuda and rotated.shape[0] > 16 and int8_tensor_cores(x.device):
-            out = torch.cat([self._int8_product(rotated[i : i + CHUNK_ROWS], weight, x.dtype) for i in range(0, rotated.shape[0], CHUNK_ROWS)])
+        if x.is_cuda and rotated.shape[0] >= INT_MM_MIN_ROWS and int8_tensor_cores(x.device):
+            out = torch.cat([self._int8_product(rotated[a:b], weight, x.dtype) for a, b in int8_slices(rotated.shape[0])])
             if self.bias is not None:
                 out = out + self.bias
         else:

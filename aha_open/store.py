@@ -1,6 +1,6 @@
 """SQLite state: clients and pairing (clients.sqlite), uploads and jobs (jobs.sqlite).
 
-Rule: no prompt and no token ever lands in these files (docs/07_security.md section 3, rules 4 and 9). Tokens are
+Rule: no prompt and no token ever lands in these files (docs/product/07_security.md section 3, rules 4 and 9). Tokens are
 stored as sha256; prompts live only in jobs/<id>/request.json while a job is alive.
 """
 

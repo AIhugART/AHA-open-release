@@ -1,6 +1,6 @@
 """Qwen-Image-2.1 worker. Runs inside its own virtual environment (pinned in pyproject.toml).
 
-Speaks the worker protocol of docs/04_architecture.md section 2 on stdin/stdout. Uses only public diffusers /
+Speaks the worker protocol of docs/product/04_architecture.md section 2 on stdin/stdout. Uses only public diffusers /
 transformers / bitsandbytes / comfy-kitchen APIs; no code is copied from the Qwen or community repositories.
 
 Four variants: `int8` (community bitsandbytes build, loaded by from_pretrained, LoRA through peft) and the ConvRot builds
@@ -231,7 +231,7 @@ def lora_state_for(path: str, module_names: set[str]) -> dict:
     Trained LoRAs name the same layers differently: a `diffusion_model.`/`transformer.` prefix, a `.default` adapter
     infix, `.alpha` tensors, and ai-toolkit's fused `img_mlp.gate_up` where this model has two layers (`gate_layer`,
     then `proj`; the fused rows are the two halves in that order - an independent open-source Qwen-Image LoRA loader, a third-party
-    statement that the real-run check in docs/05_models.md section 3.2 tests). Measured on a real ai-toolkit file:
+    statement that the real-run check in docs/product/05_models.md section 3.2 tests). Measured on a real ai-toolkit file:
     without this step peft dropped the 64 fused tensors with only a log line and the LoRA ran at five sixths strength.
     """
     from safetensors.torch import load_file

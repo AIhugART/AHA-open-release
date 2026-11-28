@@ -1,7 +1,7 @@
 # aha-open-mcp
 
 An MCP server that lets a coding agent drive, observe and judge a running AHA open server end to end. What it is and the
-rules it follows: [../docs/08_auto_test_and_debug.md](../docs/08_auto_test_and_debug.md).
+rules it follows: [../docs/product/08_auto_test_and_debug.md](../docs/product/08_auto_test_and_debug.md).
 
 ```bash
 cd aha_open_mcp

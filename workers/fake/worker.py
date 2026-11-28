@@ -1,4 +1,4 @@
-"""Synthetic worker: no torch, no GPU, stdlib only. It speaks the real worker protocol (docs/04_architecture.md section 2)
+"""Synthetic worker: no torch, no GPU, stdlib only. It speaks the real worker protocol (docs/product/04_architecture.md section 2)
 so the gateway and the conformance suite can be exercised end to end without a model.
 
 Prompt markers (tests only) make it misbehave on purpose:

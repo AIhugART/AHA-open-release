@@ -1,7 +1,7 @@
 """What each model is, what it can do, what license it carries, and whether it can run on this machine.
 
 Capabilities are the contract: a job whose parameters fall outside them is refused before it is queued
-(docs/03_api_v1.md section 5). Nothing here imports torch.
+(docs/product/03_api_v1.md section 5). Nothing here imports torch.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ WORKERS_DIR = Path(__file__).resolve().parent / "workers" if (Path(__file__).res
 
 # Two tiers per aspect ratio. "native" are the model's own sizes (~4 MP); "1k" are the same ratios at ~1 MP.
 # On a 24 GiB GPU the 1k tier takes ~40 s and fits in
-# VRAM, the native tier spills past VRAM and takes minutes (docs/05_models.md section 3). With only an aspect_ratio given,
+# VRAM, the native tier spills past VRAM and takes minutes (docs/product/05_models.md section 3). With only an aspect_ratio given,
 # the first match wins, so the 1k tier is the default; ask for width/height to get a native size.
 _QWEN_NATIVE = [
     ("1:1", 2048, 2048), ("4:3", 2400, 1792), ("3:4", 1792, 2400), ("3:2", 2528, 1696),
@@ -44,7 +44,7 @@ QWEN_SIZES = [
 # LoRA adapters the operator put in <data_dir>/loras (aha_open/loras.py). Clients pick them by id from the manifest.
 LORA_CAPS = {"max": 3, "scale": {"min": 0.0, "max": 2.0, "default": 1.0}, "format": "safetensors"}
 
-# What Qwen-Image-2.1 costs, measured on one RTX 3090 Ti 24 GiB at 1024x1024, 40 steps (docs/05_models.md section 3). None = not measured yet.
+# What Qwen-Image-2.1 costs, measured on one RTX 3090 Ti 24 GiB at 1024x1024, 40 steps (docs/product/05_models.md section 3). None = not measured yet.
 # The full BF16 model is not offered. Four variants: the community bitsandbytes INT8 build ("int8", its own folder) and three ConvRot
 # builds that share one folder ("convrot": text encoder, VAE, configs) and differ only in the transformer file.
 #   loras: True = a real LoRA run succeeded on this variant; None = not tried (nothing is refused); False = refused.
@@ -86,7 +86,7 @@ def variant_public(info: dict) -> dict:
     return {k: info[k] for k in PUBLIC_VARIANT_KEYS if k in info}
 
 
-# MiniMax H3, measured with AHA open's own loader on one RTX 3090 Ti 24 GiB (docs/05_models.md section 2.3). Only 16:9 was run, so only
+# MiniMax H3, measured with AHA open's own loader on one RTX 3090 Ti 24 GiB (docs/product/05_models.md section 2.3). Only 16:9 was run, so only
 # 16:9 is declared; every side is a multiple of 32 (the video VAE's grid).
 H3_SIZES = [
     {"aspect_ratio": "16:9", "short_edge": 768, "width": 1344, "height": 768, "tier": "native"},
@@ -263,7 +263,7 @@ CATALOG: dict[str, ModelSpec] = {
             family="minimax_h3",
             engine="diffusers",
             tasks=("video.generate",),
-            # Only what was run for real on the 24 GiB reference GPU is declared (docs/05_models.md section 2.3): the publisher's README
+            # Only what was run for real on the 24 GiB reference GPU is declared (docs/product/05_models.md section 2.3): the publisher's README
             # lists 4-15 s and six aspect ratios, but nothing else than a 5 s clip at these two 16:9 sizes has been generated here.
             capabilities={
                 "durations_s": {"min": 5, "max": 5},  # 124 frames = 5.17 s; longer clips are not measured (and grow fast in time and memory)
@@ -287,7 +287,7 @@ CATALOG: dict[str, ModelSpec] = {
                 "url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE",
                 "notes": "Not licensed in the EU, UK, South Korea or the US; extra duties when offered as a hosted service.",
             },
-            # Only the community builds are offered, never the ~133 GB full model (docs/05_models.md section 2.0). MiniMax H3 is
+            # Only the community builds are offered, never the ~133 GB full model (docs/product/05_models.md section 2.0). MiniMax H3 is
             # supported from 16 GB cards (owner, 2026-11-26): NVFP4 ran under a 15.5 GiB cap; INT8 reserves 22 GiB at the small size.
             min_vram_mib={"int8": 23552, "mixed": 18432, "nvfp4": 15872},
             variants=H3_VARIANTS,
@@ -298,7 +298,7 @@ CATALOG: dict[str, ModelSpec] = {
 
 # MiniMax H3 reference-to-video-and-audio ("Ref2VA"): the same sizes, clip length and licence as the text/frame model, its own
 # transformer checkpoint (14 GiB) and ordered image/video/audio references. It lives in the folder of minimax-h3-fl2va because the
-# encoder, both VAEs and the small configs are identical (docs/05_models.md section 2.4). Only what was run for real is declared.
+# encoder, both VAEs and the small configs are identical (docs/product/05_models.md section 2.4). Only what was run for real is declared.
 _FL2VA = CATALOG["minimax-h3-fl2va"]
 CATALOG["minimax-h3-ref2va"] = replace(
     _FL2VA,
@@ -369,13 +369,20 @@ def _smi(exe: str, fields: str) -> list[list[str]]:
 # ---------------------------------------------------------------------------------------------- workers
 
 
+def env_marker(cfg: Config, worker: str) -> Path:
+    """Exists while a worker environment is being built (aha_open/install.py), and stays if the build did not finish: `uv venv` leaves
+    a `python` behind before any package is in, so the interpreter alone does not say the environment works."""
+    return cfg.data_dir / "workers" / worker / "setup.incomplete"
+
+
 def worker_python(cfg: Config, mc: ModelConfig) -> Path | None:
     if mc.python:
         return Path(mc.python)
     if mc.worker == "fake":
         return Path(sys.executable)
     scripts = "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
-    for base in (cfg.data_dir / "workers" / mc.worker / "venv", WORKERS_DIR / mc.worker / ".venv"):
+    built = [] if env_marker(cfg, mc.worker).exists() else [cfg.data_dir / "workers" / mc.worker / "venv"]
+    for base in (*built, WORKERS_DIR / mc.worker / ".venv"):
         candidate = base / scripts
         if candidate.exists():
             return candidate
@@ -443,8 +450,8 @@ def model_state(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool = F
             f"run `aha-open models install {spec.id} --accept-license <key>`"
         )
     if spec.family != "fake":
-        if worker_python(cfg, mc) is None or not (WORKERS_DIR / mc.worker / "worker.py").exists():
-            return "not_installed", "worker environment not found"
+        if not (WORKERS_DIR / mc.worker / "worker.py").exists():
+            return "not_installed", "this installation does not include the model's code; reinstall AHA open"
         wdir = weights_dir(cfg, mc)
         if wdir is not None and not (wdir / "model_index.json").exists():
             return "not_installed", f"weights not found at {wdir}"
@@ -454,6 +461,11 @@ def model_state(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool = F
             return "not_installed", f"{absent[0]} is missing; run `aha-open models install {spec.id} --accept-license <key>`"
         if wdir is not None and download_incomplete(wdir):
             return "not_installed", "the download did not finish; start it again and it continues where it stopped"
+        if worker_python(cfg, mc) is None:  # after the weights: "set up the engine" is advice only when nothing else is missing
+            return "not_installed", (
+                "the model's engine is not set up on this machine; press Set up engine under Settings > Installed Models, "
+                f"or run `aha-open models install {spec.id} --accept-license <key>`"
+            )
     need = spec.min_vram_mib.get(mc.variant or next(iter(spec.min_vram_mib), ""), 0)
     if need:
         gpus = {g["index"]: g for g in detect_gpus()}
@@ -490,7 +502,7 @@ def manifest_model(cfg: Config, mc: ModelConfig, spec: ModelSpec, loading: bool 
             **spec.capabilities,
             "loras": {**spec.capabilities["loras"], "available": [lora.public() for lora in available.values()]},
         }
-    if spec.variants:  # additive fields (docs/03_api_v1.md section 4): which variant runs here, and what the others cost
+    if spec.variants:  # additive fields (docs/product/03_api_v1.md section 4): which variant runs here, and what the others cost
         gpu = {g["index"]: g for g in detect_gpus()}.get(mc.gpu)
         gpu_mib = gpu_budget_mib(cfg, gpu)
         suggestion, _ = recommend_variant_for(spec.id, gpu_mib, detect_ram_gib())
@@ -582,7 +594,7 @@ def validate_job(
     spec: ModelSpec, task: str, prompt: str | None, params: dict, inputs: list[dict],
     available_loras: frozenset[str] = frozenset(), variant: str = "",
 ) -> dict:
-    """Return the accepted (normalised) params, or raise 400. No silent resizing, ever (docs/04_architecture.md section 8)."""
+    """Return the accepted (normalised) params, or raise 400. No silent resizing, ever (docs/product/04_architecture.md section 8)."""
     if task not in spec.tasks:
         raise ApiError(400, "unsupported_task", f"model {spec.id} does not support {task}")
     caps = spec.capabilities

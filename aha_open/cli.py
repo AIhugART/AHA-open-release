@@ -1,4 +1,4 @@
-"""`aha-open` command line (docs/04_architecture.md section 6)."""
+"""`aha-open` command line (docs/product/04_architecture.md section 6)."""
 
 from __future__ import annotations
 

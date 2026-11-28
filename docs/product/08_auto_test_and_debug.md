@@ -3,8 +3,8 @@
 > **Status: partly implemented.** ✅ Run for real, against a real `aha-open serve` process and over the real MCP protocol:
 > observation tools, the throwaway sandbox, jobs, scenarios, assertions, recorded runs, diagnosis of a failed job
 > (section 8). ✅ The `live` target and the real-model sandbox are built and their gates tested, and the real Qwen INT8 model ran
-> through a scenario twice with byte-identical results (see [the playbook](../aha_open_mcp/playbooks/ui_e2e.md)).
-> Code: [`aha_open_mcp/`](../aha_open_mcp/). The reasons behind each choice are in the project's internal plan.
+> through a scenario twice with byte-identical results (see [the playbook](../../aha_open_mcp/playbooks/ui_e2e.md)).
+> Code: [`aha_open_mcp/`](../../aha_open_mcp/). The reasons behind each choice are in the project's internal plan.
 
 ## 1. What it is
 

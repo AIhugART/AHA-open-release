@@ -1,12 +1,12 @@
 # Concepts — how the AHA open API fits together
 
-Read this once before you build anything. Field-by-field definitions are in [`../03_api_v1.md`](../03_api_v1.md); this page explains the
+Read this once before you build anything. Field-by-field definitions are in [`../03_api_v1.md`](../product/03_api_v1.md); this page explains the
 *shape* of the API so those definitions make sense.
 
 ## 1. Where to send requests
 
-The base URL depends on how the person who runs AHA open set it up (the *profile*, [`../03_api_v1.md`](../03_api_v1.md) §9 and
-[`../06_deployment.md`](../06_deployment.md)):
+The base URL depends on how the person who runs AHA open set it up (the *profile*, [`../03_api_v1.md`](../product/03_api_v1.md) §9 and
+[`../06_deployment.md`](../product/06_deployment.md)):
 
 | Profile | Base URL | Token | Extra |
 |---|---|---|---|
@@ -88,7 +88,7 @@ Roles: `source` (the picture to edit), `reference` (a picture to take style or c
 `capabilities.mask` is true — Qwen-Image-2.1's is **false**), `first_frame` / `last_frame` / `reference_video` / `reference_audio` (video; only when the model's
 `first_frame`, `last_frame`, `max_reference` say so). MiniMax H3: `minimax-h3-fl2va` takes text only, `minimax-h3-ref2va` takes one
 `reference` image, and neither takes a first or last frame (`400`).
-Details: [`../03_api_v1.md`](../03_api_v1.md) §2 and §5, and per model [07_models.md](07_models.md).
+Details: [`../03_api_v1.md`](../product/03_api_v1.md) §2 and §5, and per model [07_models.md](07_models.md).
 
 ## 6. Errors
 

@@ -1,4 +1,4 @@
-"""The /v1 HTTP surface (docs/03_api_v1.md). Gateway only: this module never imports torch.
+"""The /v1 HTTP surface (docs/product/03_api_v1.md). Gateway only: this module never imports torch.
 
 Order of defence for every request: Host allow-list -> Origin rule -> bearer token -> ownership of the object.
 """

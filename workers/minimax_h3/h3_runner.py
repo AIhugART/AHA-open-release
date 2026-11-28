@@ -206,7 +206,7 @@ def generate(
     )
     state = _run(pipe, state, "decode")
     timings["decode_s"] = round(time.monotonic() - t, 1)
-    timings["peak_vram_gib"] = round(torch.cuda.max_memory_allocated() / 2**30, 2)  # allocated by PyTorch, the number docs/05_models.md quotes
+    timings["peak_vram_gib"] = round(torch.cuda.max_memory_allocated() / 2**30, 2)  # allocated by PyTorch, the number docs/product/05_models.md quotes
     check()
 
     videos = state.get("videos")

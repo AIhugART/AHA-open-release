@@ -85,12 +85,12 @@ saved lighthouse.png: 1024x1024, 2312944 bytes, seed 42
 ```
 
 (Python also shows a live `running: step N/40` counter.) Same prompt, same `seed`, same size and steps give the **same picture, byte for byte**:
-both files had sha256 `c142df9e…ba45`, the value recorded for this prompt in [../05_models.md](../05_models.md) §1 (✅ 2026-11-24, Python 3.12 / Windows PowerShell 5.1 against the real model).
+both files had sha256 `c142df9e…ba45`, the value recorded for this prompt in [../05_models.md](../product/05_models.md) §1 (✅ 2026-11-24, Python 3.12 / Windows PowerShell 5.1 against the real model).
 The curl script does not set a seed, so its picture differs every time.
 
 ### How long does it take?
 
-Measured on one RTX 3090 Ti 24 GiB, INT8 build, 1024×1024, 40 steps ([../05_models.md](../05_models.md) §1 and §3.1): the **first**
+Measured on one RTX 3090 Ti 24 GiB, INT8 build, 1024×1024, 40 steps ([../05_models.md](../product/05_models.md) §1 and §3.1): the **first**
 picture after AHA open starts also loads the model (about 120 s once), then each picture takes about 36–42 s. Other graphics cards: **to be measured**.
 While the model loads the job shows `loading_model`; that is not an error.
 

@@ -1,7 +1,7 @@
 # Limits and behaviour — what to design your app around
 
 The things that do not show in a first happy-path test and bite later. They describe **AHA open** as it is now; the neutral standard is
-[`../03_api_v1.md`](../03_api_v1.md).
+[`../03_api_v1.md`](../product/03_api_v1.md).
 
 ## 1. Limits
 
@@ -95,4 +95,4 @@ no result, ever.
 
 The machine-readable form is [`../../schema/aha_provider_v1.openapi.yaml`](../../schema/aha_provider_v1.openapi.yaml) (OpenAPI 3.1). A
 generator will give you the routes and the job, upload, result and error types. `capabilities` and `params` are open objects there
-because they differ per model: write those types from [07_models.md](07_models.md) and [`../03_api_v1.md`](../03_api_v1.md) §4.
+because they differ per model: write those types from [07_models.md](07_models.md) and [`../03_api_v1.md`](../product/03_api_v1.md) §4.

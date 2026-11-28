@@ -2,14 +2,14 @@
 
 | File | Vai trò | Đọc khi |
 |---|---|---|
-| [01_overview.md](01_overview.md) | Mục tiêu, ranh giới, nguyên tắc | Lần đầu tìm hiểu |
-| [03_api_v1.md](03_api_v1.md) | Đặc tả API `/v1` (nguồn sự thật cho tới khi có OpenAPI) | Viết client hoặc một provider `/v1` khác |
+| [01_overview.md](product/01_overview.md) | Mục tiêu, ranh giới, nguyên tắc | Lần đầu tìm hiểu |
+| [03_api_v1.md](product/03_api_v1.md) | Đặc tả API `/v1` (nguồn sự thật cho tới khi có OpenAPI) | Viết client hoặc một provider `/v1` khác |
 | [../aha_open_api/README.md](../aha_open_api/README.md) | **Hướng dẫn dùng API** (tiếng Anh): bắt đầu nhanh, khái niệm, viết client, công thức, lỗi, bàn giao cho lập trình viên, ví dụ chạy được (Python, PowerShell, curl, Node) | Dùng AHA open từ một script, hoặc viết ứng dụng trên nó |
-| [04_architecture.md](04_architecture.md) | Cấu trúc bên trong AHA open | Phát triển AHA open |
-| [05_models.md](05_models.md) | Model, phần cứng, giấy phép | Chọn model, triển khai |
-| [06_deployment.md](06_deployment.md) | Ba hồ sơ triển khai | Cài đặt |
-| [07_security.md](07_security.md) | Bảo mật | Mở ra LAN/internet |
-| [08_auto_test_and_debug.md](08_auto_test_and_debug.md) | `aha-open-mcp`: kiểm thử đầu-cuối và chẩn đoán do agent điều khiển | Kiểm một server thật, gỡ lỗi một job hỏng |
+| [04_architecture.md](product/04_architecture.md) | Cấu trúc bên trong AHA open | Phát triển AHA open |
+| [05_models.md](product/05_models.md) | Model, phần cứng, giấy phép | Chọn model, triển khai |
+| [06_deployment.md](product/06_deployment.md) | Ba hồ sơ triển khai | Cài đặt |
+| [07_security.md](product/07_security.md) | Bảo mật | Mở ra LAN/internet |
+| [08_auto_test_and_debug.md](product/08_auto_test_and_debug.md) | `aha-open-mcp`: kiểm thử đầu-cuối và chẩn đoán do agent điều khiển | Kiểm một server thật, gỡ lỗi một job hỏng |
 
 ## Quy ước
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 class ApiError(Exception):
-    """An error that maps to an HTTP status and the /v1 error body (docs/03_api_v1.md section 8)."""
+    """An error that maps to an HTTP status and the /v1 error body (docs/product/03_api_v1.md section 8)."""
 
     def __init__(self, status: int, code: str, message: str, retry_after_s: float | None = None) -> None:
         super().__init__(message)

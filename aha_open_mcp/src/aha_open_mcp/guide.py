@@ -42,7 +42,7 @@ ERROR_CODE_GUIDE: dict[str, tuple[str, str]] = {
     "model_not_installed": ("The model is not installed on this server, or its worker environment is missing.",
                             "On the server: `aha-open models install <model> --accept-license <id>`; then `aha-open models list`."),
     "unsupported_hardware": ("This machine cannot run the model (not enough VRAM, no GPU, or too little RAM).",
-                             "Use a smaller model or size, or a machine that meets the requirement in docs/05_models.md."),
+                             "Use a smaller model or size, or a machine that meets the requirement in docs/product/05_models.md."),
     "busy": ("The client's or the server's queue is full.",
              "Wait `retry_after_s` and submit again; do not loop faster than that."),
     "model_loading": ("The model is being loaded onto the GPU (tens of seconds to minutes, measured ~90 s cold for Qwen INT8).",
@@ -95,7 +95,7 @@ def codes_in_gateway_source() -> set[str]:
 
 
 def codes_in_specification() -> set[str]:
-    text = (REPO / "docs" / "03_api_v1.md").read_text(encoding="utf-8")
+    text = (REPO / "docs" / "product" / "03_api_v1.md").read_text(encoding="utf-8")
     section = text.split("## 8. Error codes", 1)[1].split("\n## ", 1)[0]
     return set(re.findall(r"^\| `([a-z_]+)` \|", section, re.M))
 

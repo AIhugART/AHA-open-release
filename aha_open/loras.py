@@ -5,7 +5,7 @@ Why: a LoRA is model weights - it can be hundreds of MB, carries its own licence
 worker. Only `.safetensors` is accepted (no pickle), the id is restricted to a safe alphabet (it becomes a file name and
 an adapter name), and nothing here imports torch.
 
-Layout (docs/04_architecture.md section 4):  <data_dir>/loras/<id>.safetensors  [+ <id>.json]
+Layout (docs/product/04_architecture.md section 4):  <data_dir>/loras/<id>.safetensors  [+ <id>.json]
 Sidecar fields (all optional): display_name, default_scale, trigger, license, notes.
 """
 

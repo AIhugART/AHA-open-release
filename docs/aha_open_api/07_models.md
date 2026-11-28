@@ -1,7 +1,7 @@
 # Model reference — Qwen-Image-2.1 and MiniMax H3
 
 What an app developer needs to know about each model AHA open serves: what it accepts, what it returns, what it costs, and what its
-license asks of **your app**. Measurements and license quotations come from [`../05_models.md`](../05_models.md), which has the method
+license asks of **your app**. Measurements and license quotations come from [`../05_models.md`](../product/05_models.md), which has the method
 behind every number. The size lists, variant numbers and request examples on this page are checked against the server's model catalog
 by the conformance suite.
 
@@ -243,7 +243,7 @@ already has `minimax-h3-fl2va` downloads only the transformer (about 12–15 GB)
 ## 5. MiniMax H3 license duties for your app
 
 The manifest carries `license.required_ui_label`, `license.excluded_territories` and `commercial_use: allowed_with_conditions`.
-Quotations below are from the MiniMax H3 Community License Agreement as recorded in [`../05_models.md`](../05_models.md) §2.1. Some
+Quotations below are from the MiniMax H3 Community License Agreement as recorded in [`../05_models.md`](../product/05_models.md) §2.1. Some
 sentences were cut when they were read: **read the full text before you ship**; this table is not legal advice.
 
 | Duty | What your app does |

@@ -23,7 +23,7 @@ Only the latest release and the `main` branch receive security fixes. There is n
 
 ## What is in scope
 
-The rules AHA open promises are written in [docs/07_security.md](docs/07_security.md), and each one has a negative test in
+The rules AHA open promises are written in [docs/product/07_security.md](docs/product/07_security.md), and each one has a negative test in
 `conformance/`. A report that shows one of these rules can be broken is in scope, for example:
 
 - reading, cancelling or downloading another client's job (must be `404`);
@@ -39,7 +39,7 @@ The rules AHA open promises are written in [docs/07_security.md](docs/07_securit
 
 - Anything that needs the attacker to already control the operator's account or `data_dir` (the operator's user can read it by design).
 - Cloudflare, Hugging Face, or the model publishers' services themselves; report those to their owners.
-- Model behaviour (what a model generates) and model licenses; see [docs/05_models.md](docs/05_models.md).
+- Model behaviour (what a model generates) and model licenses; see [docs/product/05_models.md](docs/product/05_models.md).
 - Setups that go against the documentation, for example opening the port to the internet without the tunnel and Access.
 - Denial of service by a client with a valid token within the documented limits (queue, upload size, rate). A limit that
   is missing or can be bypassed is in scope.

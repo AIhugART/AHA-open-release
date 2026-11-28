@@ -1,4 +1,4 @@
-"""Self-signed certificate for the `lan` profile and its fingerprint (clients pin the fingerprint; docs/06_deployment.md)."""
+"""Self-signed certificate for the `lan` profile and its fingerprint (clients pin the fingerprint; docs/product/06_deployment.md)."""
 
 from __future__ import annotations
 

@@ -5,5 +5,5 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
 AHA open does not bundle or redistribute any model weights. Models are downloaded by the
 operator from their publishers and are governed by their own licenses, which the operator
-must accept explicitly (see docs/05_models.md). "Qwen" and "MiniMax" are names of third-party
+must accept explicitly (see docs/product/05_models.md). "Qwen" and "MiniMax" are names of third-party
 models; they are used here only to describe which model a worker runs.

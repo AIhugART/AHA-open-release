@@ -1,6 +1,6 @@
 """What this machine can run, and which model variant to use (Qwen-Image-2.1 is offered as INT8 only).
 
-Every threshold below is taken from a measurement recorded in docs/05_models.md section 3 (RTX 3090 Ti, 24 GiB); a
+Every threshold below is taken from a measurement recorded in docs/product/05_models.md section 3 (RTX 3090 Ti, 24 GiB); a
 number that has not been measured is not used to refuse anything. Nothing here imports torch.
 """
 
@@ -11,7 +11,7 @@ import shutil
 import sys
 from pathlib import Path
 
-# Qwen-Image-2.1 on the 24 GiB reference GPU, 1024x1024, 40 steps (docs/05_models.md section 3).
+# Qwen-Image-2.1 on the 24 GiB reference GPU, 1024x1024, 40 steps (docs/product/05_models.md section 3).
 INT8_MIN_VRAM_GIB = 10.0  # measured peak 9.47 GiB allocated / 9.53 GiB reserved
 
 
@@ -73,7 +73,7 @@ def fit_for(info: dict, gpu_mib: int | None) -> str:
     """``fits`` | ``tight`` | ``too_small`` | ``unknown``: can this variant run here at all, from measured peaks only.
 
     The 1024x1024 figure for an image model; for a model whose sizes are named otherwise (video), its best size among the measured ones.
-    A number that was not measured never refuses anything (docs/05_models.md section 3): that is ``unknown``.
+    A number that was not measured never refuses anything (docs/product/05_models.md section 3): that is ``unknown``.
     """
     vram = info.get("vram_gib") or {}
     if "1k" in vram:

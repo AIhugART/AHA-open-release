@@ -1,7 +1,7 @@
 """MiniMax H3 worker (text -> video with sound). Runs inside its own virtual environment (pinned in pyproject.toml).
 
-Speaks the worker protocol of docs/04_architecture.md section 2 on stdin/stdout, like the Qwen worker. Loads the community ConvRot
-files with this folder's own loader (no ComfyUI): see docs/04_architecture.md section 6.2.
+Speaks the worker protocol of docs/product/04_architecture.md section 2 on stdin/stdout, like the Qwen worker. Loads the community ConvRot
+files with this folder's own loader (no ComfyUI): see docs/product/04_architecture.md section 6.2.
 
 Memory plan: nothing stays on the GPU between jobs. Each job encodes the prompt (encoder layers read from disk), loads the
 transformer for the sampling steps, then decodes; the GPU is capped at the memory physically free when the job starts.

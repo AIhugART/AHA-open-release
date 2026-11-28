@@ -41,7 +41,7 @@ Short answers to common tasks. Each names the file that does it; every file runs
 
 The model lists exact sizes in the manifest (`capabilities.sizes`); send `width` **and** `height` from one entry, or only `aspect_ratio`. Anything else is `400`, because AHA open
 never stretches. For Qwen-Image-2.1 the **1k** tier (about 1 megapixel, 1024×1024, 1152×864, 1376×768 and their flips) takes about 36–42 s on the test machine; the **native**
-tier (about 4 megapixels, 2048×2048 and others) took 269–326 s and needs more video memory than a 24 GiB card has (26.9 GiB measured; [../05_models.md](../05_models.md) §3.1). Other cards: **to be measured**.
+tier (about 4 megapixels, 2048×2048 and others) took 269–326 s and needs more video memory than a 24 GiB card has (26.9 GiB measured; [../05_models.md](../product/05_models.md) §3.1). Other cards: **to be measured**.
 
 ## 4. Edit a picture
 
@@ -99,7 +99,7 @@ python recipes.py lora "a portrait of a fox, mystyle" --lora my-style --scale 0.
 
 The body carries `"params": {…, "loras": [{"id": "my-style", "scale": 0.8}]}` (up to `capabilities.loras.max`, 3 for Qwen; `scale` above 0 and at most `scale.max`, default 1.0; no repeated id).
 Use the LoRA's trigger word in the prompt if it has one. The result records which LoRAs were used, with their hashes, in `results[].loras`; a job **without** `loras` is identical to a server that never had one.
-Tested with the synthetic model and a synthetic LoRA file (🧪, the manifest updates without a restart). Real LoRAs on the real model were run in an earlier session ([../05_models.md](../05_models.md) §3.2);
+Tested with the synthetic model and a synthetic LoRA file (🧪, the manifest updates without a restart). Real LoRAs on the real model were run in an earlier session ([../05_models.md](../product/05_models.md) §3.2);
 this machine had none installed on 2026-11-24, so recipe 8 itself was **not run for real** (⬜).
 
 ## 9. Make a video
@@ -119,7 +119,7 @@ and `has_audio`.
 
 **✅ real, MiniMax H3 on an RTX 3090 Ti:** a 5 s clip, 124 frames at 24 fps with stereo sound at 32 kHz, takes about **4–5 minutes at
 `preview` (608×352) and 23 minutes at `native` (1344×768)**, depending on the build ([07_models.md](07_models.md) section 3.4). The
-whole `/v1` path through a gateway was run at `preview` on 2026-11-25 ([../05_models.md](../05_models.md) §3.3). The recipe script
+whole `/v1` path through a gateway was run at `preview` on 2026-11-25 ([../05_models.md](../product/05_models.md) §3.3). The recipe script
 itself is tested with a synthetic model that has the same shape (🧪, `example-video-sized`: tier choice, default, wrong name, fixed
 length) and has not been run against the real model (⬜).
 
@@ -131,7 +131,7 @@ length) and has not been run against the real model (⬜).
 python recipes.py video "the person in the photo waves and says hello" --reference person.png --tier preview --out wave.mp4
 ```
 
-What was run for real on the reference machine is in [../05_models.md](../05_models.md) §2.4; the manifest only offers what was.
+What was run for real on the reference machine is in [../05_models.md](../product/05_models.md) §2.4; the manifest only offers what was.
 
 ## 10. Cancel a job
 

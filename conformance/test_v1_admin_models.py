@@ -531,3 +531,20 @@ def test_not_enough_disk_names_the_size_still_to_download_not_the_whole_model(ma
     again = {m["id"]: m for m in api.get("/admin/models").json()["models"]}
     assert again[H3_REF]["blocker"] is None
     assert runs == []
+
+
+@pytest.mark.parametrize("engine", [None, Path(sys.executable)])
+def test_the_page_is_told_when_the_model_is_on_disk_and_only_its_engine_is_missing(make_gateway, fake_install, machine, monkeypatch, engine):
+    """Root cause: the page offered Download only for weights that are absent, so a machine with weights and no engine had no button."""
+    monkeypatch.setattr(model_install, "worker_python", lambda *_: engine)
+    monkeypatch.setattr(model_install, "variant_installed", lambda cfg, spec, name: name == "int8-convrot")
+    _, api, _ = start_page(make_gateway, fake_install)
+    qwen = api.get("/admin/models").json()["models"][0]
+    assert qwen["engine_missing"] is (engine is None)
+
+
+def test_nothing_on_disk_is_a_download_not_a_missing_engine(make_gateway, fake_install, machine, monkeypatch):
+    monkeypatch.setattr(model_install, "worker_python", lambda *_: None)
+    monkeypatch.setattr(model_install, "variant_installed", lambda *_: False)
+    _, api, _ = start_page(make_gateway, fake_install)
+    assert [m["engine_missing"] for m in api.get("/admin/models").json()["models"]] == [False, False, False]

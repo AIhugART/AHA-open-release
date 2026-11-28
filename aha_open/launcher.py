@@ -1,4 +1,4 @@
-"""`aha-open start` / `aha-open stop`: what the Start-menu shortcuts of the Windows installer run (docs/06_deployment.md).
+"""`aha-open start` / `aha-open stop`: what the Start-menu shortcuts of the Windows installer run (docs/product/06_deployment.md).
 
 `start` brings the gateway up in the background (no console window) if it is not running, waits until `/v1/health`
 answers, and leaves the opening of the page to the caller. It never starts a second gateway: it asks the port first.

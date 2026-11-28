@@ -445,7 +445,7 @@ Regression gate: `tests/test_lora_state.py` (4 tests, sabotage-verified: swappin
 
 Consequence for the manifest (design note R20): Qwen's size table has two tiers — `1k` (~1 MP, same ratios, fast; ✅ all 7 sizes generated for real) and `native`
 (the model's own ~4 MP, slow when VRAM < ~27 GiB). Qwen images are always returned as RGBA PNG (even when transparency was not requested).
-Cloudflare Tunnel (request body limit, timeout): **⬜ not measured** — needs a real Cloudflare account, see `docs/06_deployment.md`.
+Cloudflare Tunnel (request body limit, timeout): **⬜ not measured** — needs a real Cloudflare account, see `docs/product/06_deployment.md`.
 
 A model that cannot run on a GPU in the table ⇒ the manifest reports `unsupported_hardware` on that machine, with the minimum
 hardware measured elsewhere (if any).

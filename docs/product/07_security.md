@@ -1,6 +1,6 @@
 # AHA open security
 
-Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
+Report a vulnerability privately: see [../SECURITY.md](../../SECURITY.md).
 
 ## 1. Assets to protect
 
@@ -82,4 +82,4 @@ Report a vulnerability privately: see [../SECURITY.md](../SECURITY.md).
 
 ## 6. Reporting security issues
 
-See [../SECURITY.md](../SECURITY.md): a private channel, not a public issue.
+See [../SECURITY.md](../../SECURITY.md): a private channel, not a public issue.

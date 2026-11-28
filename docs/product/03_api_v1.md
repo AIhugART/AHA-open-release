@@ -1,12 +1,12 @@
 # `/v1` API specification (draft)
 
 > This standard is **neutral**: any service can implement it; AHA open is one implementation. The machine-readable source of
-> truth is [`schema/aha_provider_v1.openapi.yaml`](../schema/aha_provider_v1.openapi.yaml).
+> truth is [`schema/aha_provider_v1.openapi.yaml`](../../schema/aha_provider_v1.openapi.yaml).
 >
 > **The single original of the `/v1` standard lives in this repository**. Clients — AHA Studio included — only
 > link here and pin the version of the specification they support; they keep no copy of their own.
 >
-> English is the canonical language of this document. A Vietnamese translation is in [vi/03_api_v1.md](vi/03_api_v1.md)
+> English is the canonical language of this document. A Vietnamese translation is in [vi/03_api_v1.md](../vi/product/03_api_v1.md)
 > and may lag behind.
 
 ## 1. General conventions

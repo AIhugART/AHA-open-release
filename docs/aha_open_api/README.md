@@ -1,7 +1,7 @@
 # Using the AHA open API
 
 > **Who this is for.** People who want to generate or edit images from a script, and developers who build an app on top of AHA open.
-> It is a *how-to* guide. The *definition* of the API (every field, every error code) is [`../03_api_v1.md`](../03_api_v1.md); the
+> It is a *how-to* guide. The *definition* of the API (every field, every error code) is [`../03_api_v1.md`](../product/03_api_v1.md); the
 > machine-readable form is [`../../schema/aha_provider_v1.openapi.yaml`](../../schema/aha_provider_v1.openapi.yaml). This guide links
 > to them instead of repeating them, so there is one place to look when something is unclear.
 

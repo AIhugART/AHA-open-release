@@ -1,8 +1,10 @@
-"""Build `dist/AHA-Open-Setup-<version>.exe` (docs/06_deployment.md, plan/2026-11-24_windows_installer_plan.md).
+"""Build `dist/AHA-Open-Setup-<version>.exe` (docs/product/06_deployment.md, plan/2026-11-24_windows_installer_plan.md).
 
     python windows_installer/build_installer.py                  build (runs the tests first)
     python windows_installer/build_installer.py --smoke          build, then install into a temp folder, run, uninstall
     python windows_installer/build_installer.py --check-tag v0.1.0-dev0     only check that a tag matches this tree
+    python windows_installer/build_installer.py --check-release v0.1.0-dev0  before publishing: the tag, and real jobs passed
+                                                                            with THIS installer (release_smoke.py)
 
 Why this is more than one `ISCC` call: "the build is green" has meant "the script ran to the end" before (AHA Studio's release
 playbook), not "the installer is right". So: the tree must be clean (a build packs the working tree, not a commit), the tests
@@ -13,6 +15,7 @@ must pass, the wheel must be torch-free and carry the web page, the version must
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -35,7 +38,7 @@ STAGE = ROOT / "build" / "installer"
 DIST = ROOT / "dist"
 SKIP_GATE_ENV = "AHA_OPEN_BUILD_SKIP_QUALITY_GATE"
 
-# A gateway wheel that needs any of these is no longer the small installer's gateway (CLAUDE.md: the gateway never imports torch).
+# A gateway wheel that needs any of these is no longer the small installer's gateway (the gateway never imports torch).
 FORBIDDEN_REQUIRES = ("torch", "torchvision", "diffusers", "transformers", "bitsandbytes", "accelerate", "safetensors")
 WEIGHT_SUFFIXES = (".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".gguf", ".onnx")
 WEIGHT_MIN_BYTES = 10 * 2**20  # `_virtualenv.pth` is a Python path file, not weights: a suffix alone says nothing, size does
@@ -48,6 +51,12 @@ EXPECTED_SIZE_MB = (10, 80)  # uv.exe is ~65 MiB; measured 2026-11-24 (plan sect
 
 class BuildError(Exception):
     pass
+
+
+# One real job per model family and build type, run from the installed `.exe` before a release (release_smoke.py). A test fails
+# when the catalog gains a family or runtime that none of these exercises.
+REQUIRED_JOBS = (("qwen-image-2.1", "int8"), ("qwen-image-2.1", "int8-convrot"), ("minimax-h3-fl2va", "mixed"))
+SMOKE_RECORD = "RELEASE-SMOKE.json"  # in dist/, written by release_smoke.py only when every required job passed
 
 
 # ---------------------------------------------------------------------------------------------- one version, everywhere
@@ -76,6 +85,27 @@ def check_release_tag(tag: str, version: str | None = None) -> str:
     if tag != tag_for(version):
         raise BuildError(f"REFUSED: tag {tag} does not match this tree, which builds {version} (tag {tag_for(version)})")
     return f"OK: {tag} matches version {version}"
+
+
+def check_release_record(tag: str, dist: Path | None = None) -> str:
+    """Refuse to release unless real jobs passed with exactly the installer that would be uploaded."""
+    dist = dist or DIST
+    version = read_version()
+    check_release_tag(tag, version)
+    installer, record_file = dist / installer_name(version), dist / SMOKE_RECORD
+    how = f"run: python windows_installer/release_smoke.py --installer {installer} --weights <models folder> ..."
+    if not installer.is_file():
+        raise BuildError(f"REFUSED: {installer.name} has not been built")
+    if not record_file.is_file():
+        raise BuildError(f"REFUSED: no real job has passed with this installer; {how}")
+    record = json.loads(record_file.read_text(encoding="utf-8"))
+    if record.get("installer_sha256") != hashlib.sha256(installer.read_bytes()).hexdigest():
+        raise BuildError(f"REFUSED: the record is of another installer (rebuilt since?); {how}")
+    passed = {(j.get("model"), j.get("variant")) for j in record.get("jobs", [])}
+    missing = [f"{m} / {v}" for m, v in REQUIRED_JOBS if (m, v) not in passed]
+    if missing:
+        raise BuildError(f"REFUSED: no passing job for {', '.join(missing)}; {how}")
+    return f"OK: {installer.name} passed {len(passed)} real jobs on {record.get('passed_at')}"
 
 
 # ---------------------------------------------------------------------------------------------- gates
@@ -114,6 +144,31 @@ def quality_gate() -> None:
         raise BuildError("the tests are red, so no installer is built")
 
 
+def worker_files(workers: Path = ROOT / "workers") -> list[str]:
+    """`<family>/<file>` for every file a worker needs: its pins, `worker.py`, and every sibling module it imports, followed through.
+
+    Read from the source (AST, including imports inside functions), never listed by hand: dev2 shipped a list of three names while
+    the workers had grown to eight modules, so ConvRot and MiniMax H3 could not run from the installed program.
+    """
+    needed: list[str] = []
+    for folder in sorted(p for p in workers.iterdir() if (p / "worker.py").is_file()):
+        seen: set[str] = set()
+        todo = ["worker"]
+        while todo:
+            module = todo.pop()
+            if module in seen or not (folder / f"{module}.py").is_file():
+                continue
+            seen.add(module)
+            for node in ast.walk(ast.parse((folder / f"{module}.py").read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Import):
+                    todo += [a.name.split(".")[0] for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                    todo.append(node.module.split(".")[0])
+        names = [f"{m}.py" for m in seen] + [n for n in ("pyproject.toml", "uv.lock") if (folder / n).is_file()]
+        needed += [f"{folder.name}/{n}" for n in sorted(names)]
+    return needed
+
+
 def check_wheel(wheel: Path, version: str) -> list[str]:
     """What the gateway wheel must and must not be. Returns the problems (empty = fine)."""
     problems: list[str] = []
@@ -131,7 +186,7 @@ def check_wheel(wheel: Path, version: str) -> list[str]:
         base = re.split(r"[ ;<>=!\[(~]", line, maxsplit=1)[0].lower().replace("_", "-")
         if base in FORBIDDEN_REQUIRES:
             problems.append(f"the wheel requires {base}: the gateway must stay torch-free")
-    for needed in ("aha_open/ui/index.html", "aha_open/launcher.py", "aha_open/workers/qwen_image/worker.py", "aha_open/workers/qwen_image/uv.lock"):
+    for needed in ("aha_open/ui/index.html", "aha_open/launcher.py", *(f"aha_open/workers/{f}" for f in worker_files())):
         if needed not in names:
             problems.append(f"the wheel does not contain {needed}")
     for name in names:
@@ -185,6 +240,13 @@ def check_stage(stage: Path) -> list[str]:
 # ---------------------------------------------------------------------------------------------- build
 
 
+def remove_build_leftovers(root: Path = ROOT) -> None:
+    """setuptools reuses `build/lib`: a module deleted from the tree would still go into the next wheel."""
+    for name in ("lib", "bdist.win-amd64"):
+        if (root / "build" / name).exists():
+            shutil.rmtree(root / "build" / name)
+
+
 def find_uv() -> Path:
     found = shutil.which("uv")
     if not found:
@@ -205,6 +267,7 @@ def build(allow_dirty: bool) -> Path:
     if STAGE.exists():
         shutil.rmtree(STAGE)  # our own output folder, recreated from scratch every time
     (STAGE / "wheel").mkdir(parents=True)
+    remove_build_leftovers()
     built = subprocess.run([str(uv), "build", "--wheel", "--out-dir", str(STAGE / "wheel")], cwd=ROOT, capture_output=True, text=True, check=False)
     if built.returncode:
         raise BuildError("uv build failed:\n" + built.stdout + built.stderr)
@@ -285,6 +348,14 @@ def _install_log_tail(app: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")[-1500:] if path.exists() else ""
 
 
+def refuse_if_installed() -> None:
+    """The install identity (AppId) is one per Windows user: a test install over a real one, then its uninstall, removes the real
+    program's Start-menu entries and its entry in Installed apps."""
+    if _uninstall_key_present():
+        raise BuildError("AHA open is already installed for this user; this test would remove its Start-menu entries and its entry in "
+                         "Installed apps. Uninstall it first (models and settings are kept) or use another Windows account.")
+
+
 def smoke(installer: Path, extra_env: dict[str, str] | None = None, expect_failure: bool = False, keep: bool = False) -> str:
     """Install into a temp folder with a temp data folder, start the gateway, look at it, stop it, uninstall. Never touches the real ones.
 
@@ -292,6 +363,7 @@ def smoke(installer: Path, extra_env: dict[str, str] | None = None, expect_failu
     log so the caller can check the cause was named, and checks that nothing was left running or half-installed.
     """
     version = read_version()
+    refuse_if_installed()
     tmp = Path(tempfile.mkdtemp(prefix="aha-open-smoke-"))
     app, data = tmp / "app", tmp / "data"
     env = {**os.environ, "AHA_OPEN_DATA_DIR": str(data), **(extra_env or {})}
@@ -411,11 +483,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--smoke-offline", metavar="EXE", help="install with the internet made unreachable: it must fail cleanly and say why")
     ap.add_argument("--allow-dirty", action="store_true", help="build although files are uncommitted (never for a release)")
     ap.add_argument("--check-tag", metavar="TAG", help="only check that TAG matches this tree's version")
+    ap.add_argument("--check-release", metavar="TAG", help="refuse unless TAG matches and real jobs passed with the built installer")
     ap.add_argument("--keep", action="store_true", help="keep the smoke folder when the smoke fails")
     args = ap.parse_args(argv)
     try:
         if args.check_tag:
             print(check_release_tag(args.check_tag))
+            return 0
+        if args.check_release:
+            print(check_release_record(args.check_release))
             return 0
         if args.smoke_only:
             smoke(Path(args.smoke_only), keep=args.keep)

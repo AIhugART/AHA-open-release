@@ -124,7 +124,7 @@ hợp khác trả `404`). **Không** thuộc `/v1`: cài model là quyết đị
 
 | Yêu cầu | Trả lời |
 |---|---|
-| `GET /admin/models` | Các model cài được ở đây: `state`, giấy phép cần hiện (`license.key`, `name`, `commercial_use`, `notes`, `url`, `excluded_territories`), `requires_territory_confirmation`, `disk_gib` (số GB **còn phải tải**), `blocker` (`{code, message}` hoặc `null`) và trạng thái `install` hiện tại |
+| `GET /admin/models` | Các model cài được ở đây: `state`, giấy phép cần hiện (`license.key`, `name`, `commercial_use`, `notes`, `url`, `excluded_territories`), `requires_territory_confirmation`, `disk_gib` (số GB **còn phải tải**), `blocker` (`{code, message}` hoặc `null`) và trạng thái `install` hiện tại. `engine_missing: true` nghĩa là có trọng số nhưng chưa có môi trường chạy: trang hiện nút *Set up engine*, tức lệnh `install` bên dưới với một biến thể đã cài (không tải lại file đã có; file được kiểm trước, pha `verifying`). |
 | `POST /admin/models/{id}/install` với `{"accept_license": "<license.key>"}` (kèm `"confirm_territory": true` khi danh sách ghi `requires_territory_confirmation`) | `202` + trạng thái. Khoá phải đúng từng chữ, và `confirm_territory` phải là boolean `true` (chuỗi hay số không đủ); sai là `400` và không có gì chạy |
 | `GET /admin/models/{id}/install` | `{state: idle \| running \| succeeded \| failed \| cancelled, phase, downloaded_bytes, expected_bytes, error, started_at, finished_at}` |
 | `POST /admin/models/{id}/use` với `{"variant": "<tên>"}` | Chọn một biến thể đã cài; worker đang giữ biến thể cũ được nhả và job kế tiếp nạp biến thể mới. `409 variant_not_installed`, `409 model_busy` (một job của model đang chờ, nạp hoặc chạy), `409 install_running`; tên lạ là `400`. Phản hồi là mục của model |
@@ -184,7 +184,7 @@ workers/
   qwen_image/        pyproject + uv.lock riêng, adapter gọi diffusers
   minimax_h3/        pyproject + uv.lock riêng (không ComfyUI); bộ nạp cho các tệp ConvRot của cộng đồng + pipeline H3 của diffusers
   fake/              worker giả cho test (không torch)
-windows_installer/   script Inno Setup + build_installer.py (docs/06_deployment.md mục 0.1)
+windows_installer/   script Inno Setup + build_installer.py (docs/product/06_deployment.md mục 0.1)
 conformance/         bộ kiểm hợp chuẩn /v1 (pytest, gọi HTTP thật)
 schema/              OpenAPI
 docs/

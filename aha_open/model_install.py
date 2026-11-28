@@ -1,4 +1,4 @@
-"""Install a model from the web page, for the person at this machine (`/admin/models/*`, docs/04_architecture.md).
+"""Install a model from the web page, for the person at this machine (`/admin/models/*`, docs/product/04_architecture.md).
 
 The work is done by a CHILD PROCESS running the same `aha-open models install` the command line uses, so there is exactly
 one way to install a model. That is also what makes cancelling real: the whole process tree is killed (a download resumes
@@ -21,7 +21,7 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
-from .catalog import CATALOG, detect_gpus, model_state, variant_installed, variant_public, weights_dir
+from .catalog import CATALOG, detect_gpus, model_state, variant_installed, variant_public, weights_dir, worker_python
 from .config import Config, ModelConfig, load
 from .errors import ApiError, invalid, not_found
 from .hardware import detect_ram_gib, fit_by_tier, fit_for, free_disk_gib, gpu_budget_mib, recommend_variant_for
@@ -45,6 +45,7 @@ MESSAGE_LIMIT = 300
 PHASES = (
     ("Installing ", "preparing"),
     ("Downloading ", "downloading"),
+    ("Checking ", "verifying"),
     ("Creating the ", "creating_environment"),
     ("Installed ", "finishing"),
 )
@@ -112,7 +113,7 @@ def _dir_bytes(path: Path) -> int:
 
 
 def classify_failure(returncode: int, tail: list[str], data_dir: Path) -> dict:
-    """One sentence the person can act on, and a code for the cause (docs/04_architecture.md)."""
+    """One sentence the person can act on, and a code for the cause (docs/product/04_architecture.md)."""
     text = "\n".join(tail).lower()
     last_error = next((line for line in reversed(tail) if line.startswith("error:")), "")
     if any(marker in text for marker in CERTIFICATE_MARKERS):
@@ -126,8 +127,8 @@ def classify_failure(returncode: int, tail: list[str], data_dir: Path) -> dict:
     if any(marker in text for marker in NETWORK_MARKERS):
         return {
             "code": "network_unreachable",
-            "message": "The download could not reach the internet. Check the connection (and any proxy or firewall), then press "
-                       "Download again; what was already downloaded is kept.",
+            "message": "The download could not reach the internet. Check the connection (and any proxy or firewall), then try "
+                       "again; what was already downloaded is kept.",
         }
     line = last_error or next((ln for ln in reversed(tail) if ln.strip()), f"the installer stopped (exit {returncode})")
     line = line.replace(str(data_dir), "<data folder>")[:MESSAGE_LIMIT]
@@ -172,6 +173,7 @@ class InstallManager:
                 detail = detail.replace(str(self.cfg.data_dir), "<data folder>")
             blocker = None if state == "ready" else self._blocker(model_id)
             lic = spec.license
+            variants = self._variants(model_id, plan, mc, variant)
             out.append({
                 "id": model_id,
                 "display_name": spec.display_name,
@@ -185,7 +187,9 @@ class InstallManager:
                 # a model whose licence excludes territories needs the person to confirm they are not in one (its own checkbox)
                 "requires_territory_confirmation": bool(plan.get("territory")),
                 "disk_gib": self._disk_gib(model_id, plan, variant),
-                "variants": self._variants(model_id, plan, mc, variant),
+                "variants": variants,
+                # weights here, no environment to run them: the page offers to set it up (POST .../install fetches nothing it has)
+                "engine_missing": any(v["installed"] for v in variants) and worker_python(self.cfg, mc) is None,
                 "blocker": blocker,
                 "install": self.status(model_id),
             })

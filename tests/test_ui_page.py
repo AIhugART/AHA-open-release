@@ -333,3 +333,10 @@ def test_generate_offers_only_the_video_sizes_the_variant_in_use_can_make():
 def test_variant_costs_are_shown_per_size_for_video_models():
     js = (UI / "settings.js").read_text(encoding="utf-8")
     assert "fit_by_tier" in js and js.count("costOf(v)") >= 3  # the definition, the download pick and the models list
+
+
+def test_a_model_with_its_files_but_no_engine_gets_a_set_up_button():
+    card = (UI / "settings.js").read_text(encoding="utf-8")
+    card = card[card.index("function renderModel"): card.index("function costOf")]
+    assert "mod.engine_missing" in card and "Set up engine" in card
+    assert "accept_license" in card  # the same acknowledgement a download asks for

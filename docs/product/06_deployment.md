@@ -81,7 +81,13 @@ Every step that is public (the snapshot push, the GitHub Release) is a decision 
    already public is never used again for different bytes: a release whose wheel differs from the wheel inside its installer is a
    different build and gets a new number.
 2. `python windows_installer/build_installer.py --smoke` (clean tree, tests, then the real installer installed, run and uninstalled).
-3. `python windows_installer/build_installer.py --check-tag v<version>`; `gh auth status`.
+3. **Real jobs from the installed `.exe` (mandatory).** `python windows_installer/release_smoke.py --installer dist/AHA-Open-Setup-<version>.exe
+   --weights <data folder>/models --accept-license qwen-research --accept-license minimax-h3 --confirm-territory` installs that file into a
+   clean temporary folder, sets up each engine through the web page's routes and runs one real job per model family and build type (Qwen
+   INT8, Qwen INT8 ConvRot, MiniMax H3). It needs the GPU and the weights already on disk (they are hard-linked, not copied), and refuses to
+   run where AHA open is already installed. Look at the three results in `dist/release-smoke/`. Then
+   `python windows_installer/build_installer.py --check-release v<version>` must say `OK` (it refuses when the installer was rebuilt after
+   the jobs, or a job is missing), and `gh auth status`. `--from-wheel` is the developer's version of the run; it does not count.
 4. *(public)* `python tools/release/snapshot.py OUT_DIR` writes the public tree from `HEAD` (committed bytes only; it fails if a top-level
    folder is not classified in `tools/release/`); push it to the public release repository.
 5. *(public)* **Upload first, then say so anywhere else:** `gh release create v<version> --repo <public repo> --prerelease --notes-file NOTES

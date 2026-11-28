@@ -7,7 +7,7 @@
   .\generate.ps1 "a red fox" -Model qwen-image-2.1 -Width 1024 -Height 1024 -Seed 7
 .NOTES
   Settings: AHA_OPEN_URL (default http://127.0.0.1:8890), AHA_OPEN_TOKEN (default: the local token file).
-  The token is never printed. Specification: docs/03_api_v1.md.
+  The token is never printed. Specification: docs/product/03_api_v1.md.
 #>
 param(
   [Parameter(Mandatory = $true, Position = 0)][string]$Prompt,

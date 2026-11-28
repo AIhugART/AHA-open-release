@@ -7,12 +7,12 @@ Everything else is linked, not repeated.
 
 | Item | Where |
 |---|---|
-| The API definition (the single original; pin the version you build against) | [`../03_api_v1.md`](../03_api_v1.md), machine-readable [`../../schema/aha_provider_v1.openapi.yaml`](../../schema/aha_provider_v1.openapi.yaml) — API version **`1.0` (draft)** |
+| The API definition (the single original; pin the version you build against) | [`../03_api_v1.md`](../product/03_api_v1.md), machine-readable [`../../schema/aha_provider_v1.openapi.yaml`](../../schema/aha_provider_v1.openapi.yaml) — API version **`1.0` (draft)** |
 | How-to guides | this folder: [01 quickstart](01_quickstart.md) · [02 concepts](02_concepts.md) · [03 build a client](03_build_a_client.md) · [04 recipes](04_recipes.md) · [05 errors](05_errors_and_troubleshooting.md) |
 | Model reference and server behaviour | [07 models](07_models.md) (Qwen-Image-2.1, MiniMax H3) · [08 limits and behaviour](08_limits_and_behaviour.md) |
 | Models you can build for | `qwen-image-2.1` (images, research use only) · `minimax-h3-fl2va` (text to video) · `minimax-h3-ref2va` (one reference image to video) |
 | A working client you can copy | [examples/python/aha_open_client.py](examples/python/aha_open_client.py) (stdlib Python), [examples/node/generate.mjs](examples/node/generate.mjs) (Node 18+), plus PowerShell and curl |
-| The server | AHA open `0.1.0.dev2` (pre-release). Windows installer and source: [../../README.md](../../README.md) |
+| The server | AHA open `0.1.0.dev3` (pre-release). Windows installer and source: [../../README.md](../../README.md) |
 
 ## What has really been run (evidence)
 
@@ -67,7 +67,7 @@ Acceptance: the checklist at the end of [03_build_a_client.md](03_build_a_client
 ## Rules you can rely on (kept by the server and tested)
 
 No telemetry; prompts and pictures go only back to the client that sent them. A job is never waited on in an open request (job + poll). A cancelled job never has a result.
-The server listens on `127.0.0.1` unless the operator chooses otherwise. Changing the API adds fields (minor) or breaks (major `/v2`); **ignore fields you do not know** so a minor change does not break you ([`../03_api_v1.md`](../03_api_v1.md) §10).
+The server listens on `127.0.0.1` unless the operator chooses otherwise. Changing the API adds fields (minor) or breaks (major `/v2`); **ignore fields you do not know** so a minor change does not break you ([`../03_api_v1.md`](../product/03_api_v1.md) §10).
 
 ## If something is wrong in the guides or the API
 

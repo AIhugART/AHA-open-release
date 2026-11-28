@@ -1,4 +1,4 @@
-"""Chunked uploads and input handling (docs/03_api_v1.md sections 2 and 5)."""
+"""Chunked uploads and input handling (docs/product/03_api_v1.md sections 2 and 5)."""
 
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def test_input_roles_and_media_types_are_checked(gw, api):
 
 
 def test_part_numbers_run_from_zero_to_ceil_minus_one_and_a_part_can_be_resent(make_gateway):
-    """docs/03_api_v1.md section 2 'Upload rules': numbering, exact sizes, re-sending, complete twice, parts after complete."""
+    """docs/product/03_api_v1.md section 2 'Upload rules': numbering, exact sizes, re-sending, complete twice, parts after complete."""
     gw = make_gateway(part_size=1024)
     api = Api(gw.base, gw.tokens["local"])
     data = os.urandom(2500)  # ceil(2500 / 1024) = 3 parts: 1024 + 1024 + 452
@@ -115,7 +115,7 @@ def test_part_numbers_run_from_zero_to_ceil_minus_one_and_a_part_can_be_resent(m
 
 
 def test_a_queued_job_keeps_its_inputs_when_the_upload_expires(make_gateway, monkeypatch):
-    """docs/03_api_v1.md section 2: the upload id expires, a job already created does not lose what it was given.
+    """docs/product/03_api_v1.md section 2: the upload id expires, a job already created does not lose what it was given.
 
     The worker refuses a job whose input file is gone, so `succeeded` proves the file was still there when it ran.
     """
