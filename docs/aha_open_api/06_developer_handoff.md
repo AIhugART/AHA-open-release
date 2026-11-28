@@ -12,7 +12,7 @@ Everything else is linked, not repeated.
 | Model reference and server behaviour | [07 models](07_models.md) (Qwen-Image-2.1, MiniMax H3) · [08 limits and behaviour](08_limits_and_behaviour.md) |
 | Models you can build for | `qwen-image-2.1` (images, research use only) · `minimax-h3-fl2va` (text to video) · `minimax-h3-ref2va` (one reference image to video) |
 | A working client you can copy | [examples/python/aha_open_client.py](examples/python/aha_open_client.py) (stdlib Python), [examples/node/generate.mjs](examples/node/generate.mjs) (Node 18+), plus PowerShell and curl |
-| The server | AHA open `0.1.0.dev3` (pre-release). Windows installer and source: [../../README.md](../../README.md) |
+| The server | AHA open `0.1.0.dev5` (pre-release). Windows installer and source: [../../README.md](../../README.md) |
 
 ## What has really been run (evidence)
 

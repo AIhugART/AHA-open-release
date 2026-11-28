@@ -143,9 +143,11 @@ def test_a_finished_job_keeps_no_copy_of_its_inputs(gw, api):
     assert done["status"] == "succeeded"
     jobdir = gw.cfg.data_dir / "jobs" / done["id"]
     deadline = time.monotonic() + 5  # the lane removes the inputs just after it records the result
-    while any(needle in p.read_bytes() for p in jobdir.iterdir() if p.is_file()):
+    # Wait by NAMES only. Opening a file the lane is removing fails here, and an open file cannot be removed there (Windows).
+    while any(jobdir.glob("in_*")) or (jobdir / "request.json").exists():
         assert time.monotonic() < deadline, "the job folder still holds the client's input after the job ended"
         time.sleep(0.02)
+    assert not any(needle in p.read_bytes() for p in jobdir.iterdir() if p.is_file()), "a copy of the input stayed under another name"
 
 
 def test_an_upload_that_vanishes_while_the_job_is_created_is_404_and_leaves_no_job_folder(gw, api):

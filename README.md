@@ -4,10 +4,11 @@
 standard HTTP API (`/v1`). A client sends a request to generate or edit an image and gets the result back; AHA Studio
 (a creative-suite client) is the first client, and the bundled web page (`/ui/`) is another.
 
-> **Do not use the `0.1.0.dev2` installer:** it left out worker code, so Qwen-Image-2.1 ConvRot and MiniMax H3 cannot run from it. Use
-> `0.1.0.dev3` or later; installing it over dev2 keeps your models and settings.
+> **Use `0.1.0.dev5` or later.** The `dev2` installer left out worker code (Qwen-Image-2.1 ConvRot and MiniMax H3 cannot run from it).
+> The `dev3` installer fails on a computer without Python 3.12 (seen in a simulation of one) and opens a terminal window while
+> generating. Installing dev5 over an older version should keep your models and settings (an upgrade over dev3 has not been tried).
 >
-> **Status (2026-11-28): pre-release `0.1.0.dev3`, with a Windows installer.** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
+> **Status (2026-11-28): pre-release `0.1.0.dev5`, with a Windows installer.** The `/v1` gateway, the conformance suite, the Qwen-Image-2.1 worker
 > (four quantized variants to choose from, size tiers, LoRA) and the web page exist. Run for real on one machine (RTX 3090 Ti 24 GiB, Windows): image
 > generation, editing, transparent images, cancelling and LoRA through the gateway, installed from a built wheel in a clean
 > environment. The web page (`/ui/`) was also driven in a real browser (connect, generate, result image, download). Video with
@@ -28,8 +29,8 @@ standard HTTP API (`/v1`). A client sends a request to generate or edit an image
    download another variant, switch between them, or delete one.
 
 Tried for real on one machine (RTX 3090 Ti, Windows 11): installed, model downloaded through the page, the reference picture generated
-with the same bytes as the earlier measurement, uninstalled. **Not tried yet:** the interactive wizard, the SmartScreen prompt, a machine
-with no Python at all. macOS is not supported in v1. Details and how to build the installer: [docs/product/06_deployment.md](docs/product/06_deployment.md) §0.1.
+with the same bytes as the earlier measurement, uninstalled. **Not tried yet:** the interactive wizard, the SmartScreen prompt, a
+physically clean machine (the no-Python case was only simulated). macOS is not supported in v1. Details and how to build the installer: [docs/product/06_deployment.md](docs/product/06_deployment.md) §0.1.
 
 ## Quick start (from source, needs [`uv`](https://docs.astral.sh/uv/) and an NVIDIA GPU)
 

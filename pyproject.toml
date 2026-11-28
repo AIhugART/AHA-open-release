@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aha-open"
-version = "0.1.0.dev3"
+version = "0.1.0.dev5"
 description = "Open-source service that runs open image/video models behind the neutral /v1 API"
 readme = "README.md"
 license = { text = "Apache-2.0" }

@@ -233,14 +233,33 @@ def test_the_install_is_per_user_and_asks_for_no_administrator():
     assert "{localappdata}" in re.search(r"^DefaultDirName=(.+)$", ISS, re.MULTILINE).group(1)
 
 
+def test_setup_does_not_hand_redirection_guard_to_what_it_starts():
+    """Inno 6.7 turns Windows' RedirectionGuard on by default and children inherit it. uv's venvs reach their interpreter through a
+    junction the user created, which a guarded process may not follow: the gateway started from [Run] could not spawn a worker
+    ("uv trampoline failed to spawn Python child process", observed 2026-11-28), and on a machine without Python the setup's own
+    `uv venv` gives such a venv."""
+    setup = ISS.split("[Setup]", 1)[1].split("[Files]", 1)[0]
+    assert re.search(r"^RedirectionGuard=no$", setup, re.MULTILINE)
+    assert re.search(r"^PrivilegesRequired=lowest$", setup, re.MULTILINE)  # why turning it off costs little: Setup never elevates
+
+
 def test_the_environment_is_built_before_anything_is_committed_not_after():
     """A failure raised after the files are copied is only logged by Setup, which exits 0 and stays registered."""
     assert "function PrepareToInstall" in ISS
     assert "ssPostInstall" not in ISS and "CurStepChanged" not in ISS
     body = ISS.split("function PrepareToInstall", 1)[1].split("\nend;", 1)[0]
-    for step in ("venv --python 3.12", "pip install", "init --profile local"):
+    for step in ("python -I -m venv", "pip install", "init --profile local"):
         assert step in body, step
     assert "DelTree(Venv" in body.split("if Result <> ''", 1)[1]  # a failed install removes its half-built environment
+
+
+def test_the_apps_environment_is_made_by_cpython_so_its_pythonw_has_no_console():
+    """Where uv had to download Python (a machine without it), `uv venv` wrote a CONSOLE program named `pythonw.exe`, so every
+    shortcut opened a terminal window (observed 2026-11-28; the machines checked before already had a Python, which hid it).
+    The release gate checks the built program; this keeps the script from going back."""
+    body = ISS.split("function PrepareToInstall", 1)[1].split("\nend;", 1)[0]
+    assert "run --no-project --python 3.12 python -I -m venv --without-pip " in body
+    assert "' venv --python" not in body
 
 
 def test_uv_and_the_wheel_are_only_extracted_while_installing_not_copied_into_the_app():

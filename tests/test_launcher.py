@@ -6,9 +6,11 @@ second gateway, a foreign program on the port must not be killed or reported as 
 
 from __future__ import annotations
 
+import os
 import socket
 import subprocess
 import sys
+import sysconfig
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -64,6 +66,36 @@ def test_start_runs_the_gateway_in_the_background_once_and_stop_ends_it(cfg):
 
     nothing = cli(cfg, "stop")
     assert nothing.returncode == 0 and "not running" in nothing.stdout
+
+
+# Attach to the process for an instant: possible only if it has a console. Exit code 0 = it has one, 6 = it has none.
+HAS_CONSOLE = ("import ctypes, sys; k = ctypes.WinDLL('kernel32', use_last_error=True); k.FreeConsole(); "
+               "sys.exit(0 if k.AttachConsole(int(sys.argv[1])) else ctypes.get_last_error())")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="consoles are a Windows matter")
+def test_the_gateway_started_from_the_start_menu_has_a_console_for_its_children(cfg, monkeypatch):
+    """The shortcuts run `pythonw`. A gateway without a console makes Windows open a window for every program it runs: the person saw
+    an empty terminal while generating (the worker), and every earlier check had started the gateway with `python`, which hides it."""
+    pythonw = Path(sys.base_prefix) / "pythonw.exe"  # not the one in `.venv`: uv may put a console program under that name there
+    header = pythonw.read_bytes()
+    assert header[int.from_bytes(header[0x3C:0x40], "little") + 0x5C] == 2, "this pythonw is a console program: it proves nothing"
+    monkeypatch.setattr(launcher.sys, "executable", str(pythonw))  # what the installed shortcut makes `sys.executable`
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(Path(__file__).resolve().parents[1]), sysconfig.get_path("purelib")]))
+    ok, text = launcher.start(cfg)
+    assert ok, text
+    probe = subprocess.run([sys.executable, "-c", HAS_CONSOLE, str(launcher.recorded_pid(cfg))],
+                           creationflags=subprocess.CREATE_NO_WINDOW, timeout=60, check=False)
+    assert probe.returncode == 0, "the gateway has no console: Windows will open one for each worker"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="consoles are a Windows matter")
+def test_stopping_from_the_shortcut_does_not_flash_a_window(monkeypatch):
+    """`Stop AHA open` is `pythonw` too, so the `taskkill` it runs has to ask for no window itself."""
+    asked = []
+    monkeypatch.setattr(launcher.subprocess, "run", lambda argv, **kwargs: asked.append(kwargs.get("creationflags", 0)))
+    launcher._kill_tree(4294967)
+    assert asked and asked[0] & subprocess.CREATE_NO_WINDOW
 
 
 def test_a_program_that_owns_the_port_is_reported_and_not_replaced(cfg):

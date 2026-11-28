@@ -29,4 +29,4 @@
 | Component | Version |
 |---|---|
 | API specification | `v1` (draft) |
-| AHA open | not released yet (`0.1.0.dev`) |
+| AHA open | `0.1.0.dev5` (pre-release) |

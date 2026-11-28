@@ -31,6 +31,12 @@ AppPublisherURL=https://github.com/AIhugART/AHA-open-release
 DefaultDirName={localappdata}\Programs\AHA open
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+; Inno 6.7 turns Windows' RedirectionGuard on for Setup by default and everything Setup starts inherits it. A guarded process may
+; not follow a junction the user created, and uv's Python is reached through one (the engines' `uv venv` environments): with the guard,
+; setup failed on a machine without Python (os error 448) and a gateway started from [Run] could not start a worker (os error 2).
+; Setup is per-user and never elevates, so the
+; guard (against a lower-privileged user redirecting an administrator's writes) protects nothing here. Observed 2026-11-28.
+RedirectionGuard=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutDir}
@@ -154,7 +160,9 @@ begin
     Exec(Venv + '\Scripts\pythonw.exe', '-m aha_open.cli stop --quiet', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if DirExists(Venv) then
     DelTree(Venv, True, True, True);
-  if not Step('Preparing Python (the first time this downloads it)...', Quote(Uv) + ' venv --python 3.12 ' + Quote(Venv)) then
+  { uv finds or downloads Python, and that Python makes the environment. Not `uv venv`: for a Python it downloaded itself, uv writes a
+    console program as `pythonw.exe`, and every shortcut would open a terminal window (observed 2026-11-28). }
+  if not Step('Preparing Python (the first time this downloads it)...', Quote(Uv) + ' run --no-project --python 3.12 python -I -m venv --without-pip ' + Quote(Venv)) then
     Result := Explain()
   else if not FileCopy(Uv, Venv + '\Scripts\uv.exe', False) then
     Result := 'Could not copy uv into the Python environment.' + #13#10#13#10 + 'Details: ' + LogPath()

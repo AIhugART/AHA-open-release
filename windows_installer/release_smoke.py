@@ -5,7 +5,8 @@
     python windows_installer/release_smoke.py --from-wheel ...      developer run: the built wheel in a temp environment, no record
 
 Root cause it guards: dev2 passed every test and an install smoke, and could not run ConvRot or MiniMax H3 at all, because nothing
-ever ran a job from the installed program. Needs the GPU, the weights already on disk and about 20 minutes.
+ever ran a job from the installed program. Needs the GPU, the weights already on disk and about 20 minutes. With `--installer`
+the run is that of a machine without Python (`clean_machine_env`): it also needs the internet, for `uv` to download one.
 
 The weights are not downloaded: files are HARD-LINKED into a temporary data folder (same drive), so nothing is copied and deleting the
 temporary folder never deletes an original. Everything goes through the web page's own routes (`/admin/models/*`, then `/v1`).
@@ -116,10 +117,57 @@ def wait_for(what: str, poll, done, timeout_s: float) -> dict:
         time.sleep(2)
 
 
-def run_jobs(py: Path, tmp: Path, weights: Path, licenses: set[str], territory: bool, out: Path) -> list[dict]:
+def clean_machine_env(tmp: Path) -> dict[str, str]:
+    """The environment of a user who has no Python: `uv` may only use one it downloads itself, into an empty folder.
+
+    Root cause it guards: dev3 could not be installed on such a machine (RedirectionGuard, aha-open.iss) and passed this gate,
+    which had only ever run where a Python was already there. Nothing is registered on the real machine.
+    """
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV", "UV_PYTHON")}
+    env.update(AHA_OPEN_DATA_DIR=str(tmp / "data"), UV_PYTHON_INSTALL_DIR=str(tmp / "uv-python"),
+               UV_PYTHON_PREFERENCE="only-managed", UV_PYTHON_INSTALL_REGISTRY="0", UV_PYTHON_INSTALL_BIN="0")
+    return env
+
+
+# Attach to the process for an instant: possible only if it has a console. Nothing in that process changes.
+HAS_CONSOLE = ("import ctypes, sys; k = ctypes.WinDLL('kernel32'); k.FreeConsole(); "
+               "sys.exit(0 if k.AttachConsole(int(sys.argv[1])) else 1)")
+
+
+def is_windowless(exe: Path) -> bool:
+    """Is this a program Windows starts without a console (PE subsystem 2), as `pythonw` is meant to be?"""
+    header = exe.read_bytes()
+    return header[int.from_bytes(header[0x3C:0x40], "little") + 0x5C] == 2
+
+
+def has_console(pid: int) -> bool:
+    return subprocess.run([sys.executable, "-c", HAS_CONSOLE, str(pid)], creationflags=subprocess.CREATE_NO_WINDOW,
+                          timeout=60, check=False).returncode == 0
+
+
+def start_like_the_shortcut(py: Path, env: dict[str, str], tmp: Path) -> None:
+    """Start the gateway the way a person does, with `pythonw`, and require that it has a (hidden) console.
+
+    Root cause it guards: a gateway without one opens a window for every worker. The gate used to start it with `python`, which
+    lends its own console to everything below and so can never show this.
+    """
+    pythonw = py.with_name("pythonw.exe")
+    if not is_windowless(pythonw):
+        raise b.BuildError(f"{pythonw} is a console program: starting it proves nothing about the shortcut")
+    done = subprocess.run([str(pythonw), "-m", "aha_open.cli", "start", "--no-open"], env=env, cwd=tmp, capture_output=True,
+                          text=True, timeout=180, check=False)
+    if done.returncode:
+        raise b.BuildError(f"aha-open start failed: {done.stdout}{done.stderr}")
+    pid = json.loads((tmp / "data" / "run" / "gateway.json").read_text(encoding="utf-8"))["pid"]
+    if not has_console(pid):
+        raise b.BuildError("the gateway started from the shortcut has no console: a window will open for every worker")
+
+
+def run_jobs(py: Path, tmp: Path, weights: Path, licenses: set[str], territory: bool, out: Path,
+             base_env: dict[str, str] | None = None) -> list[dict]:
     """Against the program installed at `py`: set up what each required build needs and make one real result with it."""
     data = tmp / "data"
-    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")}
+    env = {k: v for k, v in (base_env or os.environ).items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")}
     env.update(AHA_OPEN_DATA_DIR=str(data), HF_HUB_OFFLINE="1")  # a download here would mean the weights were not recognised
     cli = [str(py), "-m", "aha_open.cli"]
 
@@ -137,9 +185,9 @@ def run_jobs(py: Path, tmp: Path, weights: Path, licenses: set[str], territory: 
     port = b._free_port()
     cfg = data / "config.toml"
     cfg.write_text(re.sub(r"(?m)^listen\s*=.*$", f'listen = "127.0.0.1:{port}"', cfg.read_text(encoding="utf-8")), encoding="utf-8")
-    run("start", "--no-open")
     results = []
     try:
+        start_like_the_shortcut(py, env, tmp)
         base = f"http://127.0.0.1:{port}"
         token = (data / "local_client.token").read_text(encoding="utf-8").strip()
 
@@ -204,9 +252,13 @@ def install_exe(installer: Path, tmp: Path) -> Path:
     b.refuse_if_installed()
     app = tmp / "app"
     done = subprocess.run([str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", f"/DIR={app}"],
-                          env={**os.environ, "AHA_OPEN_DATA_DIR": str(tmp / "data")}, timeout=900, check=False)
+                          env=clean_machine_env(tmp), timeout=900, check=False)
     if done.returncode:
         raise b.BuildError(f"the installer exited {done.returncode}: {b._install_log_tail(app)}")
+    config = (app / "venv" / "pyvenv.cfg").read_text(encoding="utf-8")
+    home = Path(re.search(r"(?m)^home\s*=\s*(.+?)\s*$", config).group(1))
+    if not home.resolve().is_relative_to((tmp / "uv-python").resolve()):
+        raise b.BuildError(f"the install used the Python at {home}: this run did not simulate a machine without Python")
     return app / "venv" / "Scripts" / "python.exe"
 
 
@@ -215,7 +267,8 @@ def install_wheel(tmp: Path) -> Path:
     uv = str(b.find_uv())
     pins = tmp / "pins.txt"
     b.export_pins(pins)
-    for cmd in ([uv, "build", "--wheel", "--out-dir", str(tmp / "wheel")], [uv, "venv", "--python", "3.12", str(tmp / "app")]):
+    venv = [uv, "run", "--no-project", "--python", "3.12", "python", "-I", "-m", "venv", "--without-pip", str(tmp / "app")]
+    for cmd in ([uv, "build", "--wheel", "--out-dir", str(tmp / "wheel")], venv):
         if subprocess.run(cmd, cwd=ROOT, check=False).returncode:
             raise b.BuildError(f"uv {cmd[1]} failed")
     py = tmp / "app" / "Scripts" / "python.exe"
@@ -249,7 +302,8 @@ def main(argv: list[str] | None = None) -> int:
             installed = True
         else:
             py = install_wheel(tmp)
-        results = run_jobs(py, tmp, args.weights.resolve(), set(args.accept_license), args.confirm_territory, out)
+        results = run_jobs(py, tmp, args.weights.resolve(), set(args.accept_license), args.confirm_territory, out,
+                           clean_machine_env(tmp) if args.installer else None)
         if args.installer:
             record = {"version": b.read_version(), "installer": installer.name,
                       "installer_sha256": hashlib.sha256(installer.read_bytes()).hexdigest(),
@@ -268,7 +322,7 @@ def main(argv: list[str] | None = None) -> int:
             uninstaller = next((tmp / "app").glob("unins*.exe"), None)
             if uninstaller:
                 subprocess.run([str(uninstaller), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"],
-                               env={**os.environ, "AHA_OPEN_DATA_DIR": str(tmp / "data")}, timeout=300, check=False)
+                               env=clean_machine_env(tmp), timeout=300, check=False)
         if args.keep:
             say(f"left for inspection: {tmp}")
         else:

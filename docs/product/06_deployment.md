@@ -48,10 +48,29 @@ Evidence: ✅ the built installer was installed into a temporary folder with a t
 and contained no PyTorch; it was uninstalled (program files gone, data kept); a second install over the first upgraded it with a single
 *Add or remove programs* entry; two real network failures (offline, a dead proxy) exited non-zero, registered nothing and explained
 themselves. 🧪 the guards in `tests/test_windows_installer.py`. ⬜ Not yet seen: the interactive wizard (only the silent path was run),
-the SmartScreen prompt, a machine with no Python at all (Python 3.12 was already on the test machine). There is no icon yet.
+the SmartScreen prompt, a physically clean machine (the no-Python case was simulated, below). There is no icon yet.
 ✅ End to end on a real machine: installed, started with the shortcut's command, the model downloaded through the page (cut off once
 and continued), the reference picture generated (sha256 identical to the P0 measurement, [05_models.md](05_models.md)), then
 uninstalled with the program removed and the data kept.
+
+**Known problem of `0.1.0.dev3` and older, fixed in `0.1.0.dev5` (2026-11-28).** Inno Setup 6.7 turns Windows'
+*RedirectionGuard* on for Setup, everything Setup starts inherits it, and a guarded process cannot follow the junction through which `uv`
+reaches its Python. Two symptoms: (1) on a machine without Python 3.12 the setup **fails** (`install.log`: *untrusted mount point*,
+os error 448); (2) after *Start AHA open now*, every job fails because the model's worker exits (`logs/worker-*.log`: *uv trampoline
+failed to spawn Python child process*, os error 2). Workaround for (2): Start menu ▸ *Stop AHA open*, then *AHA open*. The script now says
+`RedirectionGuard=no`. ✅ With a test identity and an empty `uv` Python folder the old script exited 7 and the fixed one exited 0, and a
+program started from `[Run]` no longer carries the guard.
+
+**Known problem of `0.1.0.dev4` and older (the published `dev3` included), fixed in `0.1.0.dev5` (2026-11-28).** Started
+from the Start menu, an empty terminal window opens while generating. The shortcuts run `pythonw`, so the gateway had no console, and
+Windows gave the model's worker a visible one of its own. Do not close that window: it belongs to the worker. The gateway now runs under
+`python` with a hidden console, which everything it starts shares. ✅ Observed on an installed dev4: the gateway had no console and the
+window was titled with the worker's `python.exe`.
+
+A second cause, only where `uv` had to download Python (a machine without it): `uv venv` (0.11.21) wrote a **console** program as
+`venv\Scripts\pythonw.exe`, which the shortcuts run. The setup now has that Python make the environment itself
+(`uv run --no-project --python 3.12 python -I -m venv`). ✅ Reproduced with an empty `uv` Python folder: `uv venv` gave a console
+`pythonw.exe`, the new command a windowless one; the release gate refused the installer that still had the former.
 
 **Correction (2026-11-24).** The first smoke runs started the gateway with `python -m aha_open.cli` from the source checkout; `-m` puts the
 *current folder* first on `sys.path`, so they exercised the checkout, not the installed package (users were not affected: the shortcut starts
@@ -85,7 +104,10 @@ Every step that is public (the snapshot push, the GitHub Release) is a decision 
    --weights <data folder>/models --accept-license qwen-research --accept-license minimax-h3 --confirm-territory` installs that file into a
    clean temporary folder, sets up each engine through the web page's routes and runs one real job per model family and build type (Qwen
    INT8, Qwen INT8 ConvRot, MiniMax H3). It needs the GPU and the weights already on disk (they are hard-linked, not copied), and refuses to
-   run where AHA open is already installed. Look at the three results in `dist/release-smoke/`. Then
+   run where AHA open is already installed. The install and the jobs run as on a machine **without Python**: `uv` may only use a Python it
+   downloads into an empty folder (needs the internet), and the run fails if the gateway was built on any other. This simulates such a
+   machine, not a clean Windows; the wizard's *Start AHA open now* is not exercised. The gateway is started with `pythonw`, as the shortcut
+   does, and the run fails if it has no (hidden) console. Look at the three results in `dist/release-smoke/`. Then
    `python windows_installer/build_installer.py --check-release v<version>` must say `OK` (it refuses when the installer was rebuilt after
    the jobs, or a job is missing), and `gh auth status`. `--from-wheel` is the developer's version of the run; it does not count.
 4. *(public)* `python tools/release/snapshot.py OUT_DIR` writes the public tree from `HEAD` (committed bytes only; it fails if a top-level

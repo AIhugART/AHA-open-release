@@ -82,6 +82,16 @@ def _port_in_use(cfg: Config) -> bool:
         return sock.connect_ex((cfg.listen_host or "127.0.0.1", cfg.listen_port)) == 0
 
 
+def _gateway_python() -> str:
+    """The interpreter the gateway runs under: the console one, started with CREATE_NO_WINDOW, so it has a HIDDEN console.
+
+    The shortcuts run `pythonw`, which has none. Windows then gives a visible window to every console program such a process runs:
+    the worker, `nvidia-smi`, whatever a worker's libraries start. Everything under a gateway with a hidden console shares it.
+    """
+    exe = Path(sys.executable)
+    return str(exe.with_name("python.exe")) if exe.name.lower() == "pythonw.exe" else sys.executable
+
+
 def start(cfg: Config) -> tuple[bool, str]:
     """(ok, one sentence for the person). Idempotent: a running gateway is reported, not started again."""
     if cfg.profile != "local":
@@ -106,7 +116,7 @@ def start(cfg: Config) -> tuple[bool, str]:
             # cwd: `python -m` puts the CURRENT folder first on sys.path, so from a source checkout it would run that code instead of
             # the installed package (a real smoke run did exactly that); the data folder never holds an `aha_open`.
             proc = subprocess.Popen(
-                [sys.executable, "-m", "aha_open.cli", "--data-dir", str(cfg.data_dir), "serve"],
+                [_gateway_python(), "-m", "aha_open.cli", "--data-dir", str(cfg.data_dir), "serve"],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, cwd=str(cfg.data_dir), **kwargs,
             )
     deadline = time.monotonic() + START_TIMEOUT_S
@@ -122,7 +132,8 @@ def start(cfg: Config) -> tuple[bool, str]:
 
 def _kill_tree(pid: int) -> None:
     if sys.platform == "win32":
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False)
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False,
+                       creationflags=subprocess.CREATE_NO_WINDOW)  # `Stop AHA open` runs without a console (see _gateway_python)
     else:
         import signal
 

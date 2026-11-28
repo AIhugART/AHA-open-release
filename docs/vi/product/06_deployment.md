@@ -47,9 +47,27 @@ Cài lỗi sẽ nói rõ vì sao (không có internet / hết ổ đĩa / Window
 Mức bằng chứng: ✅ trình cài đã build được cài vào một thư mục tạm với một thư mục dữ liệu tạm; các gói đã cài khớp với phiên bản ghim và không chứa
 PyTorch; nó được gỡ (tệp chương trình mất, dữ liệu còn); lần cài đè thứ hai nâng cấp bản đầu chỉ với một mục *Add or remove programs*; hai lỗi mạng thật
 (ngoại tuyến, proxy chết) thoát với mã khác 0, không đăng ký gì và tự giải thích. 🧪 các chốt chặn trong `tests/test_windows_installer.py`. ⬜ Chưa thấy:
-hộp thoại cài tương tác (mới chạy đường im lặng), cảnh báo SmartScreen, máy hoàn toàn chưa có Python (máy thử đã có Python 3.12); chưa có biểu tượng.
+hộp thoại cài tương tác (mới chạy đường im lặng), cảnh báo SmartScreen, một máy sạch thật (trường hợp chưa có Python mới được mô phỏng, xem dưới); chưa có biểu tượng.
 ✅ Đầu-cuối trên một máy thật: đã cài, khởi động bằng lệnh của lối tắt, model tải qua trang (bị cắt một lần rồi tiếp tục), ảnh tham chiếu được sinh
 (sha256 giống hệt số đo P0, [05_models.md](05_models.md)), rồi gỡ cài với chương trình bị xoá và dữ liệu còn.
+
+**Lỗi đã biết của `0.1.0.dev3` trở về trước, đã sửa ở `0.1.0.dev5` (2026-11-28).** Inno Setup 6.7 bật
+*RedirectionGuard* của Windows cho trình cài, mọi thứ trình cài khởi chạy đều thừa hưởng, và tiến trình mang cờ đó không đi qua được
+junction mà `uv` dùng để tới Python của nó. Hai triệu chứng: (1) máy chưa có Python 3.12 thì **cài thất bại** (`install.log`: *untrusted
+mount point*, os error 448); (2) sau *Start AHA open now*, mọi job hỏng vì worker của model thoát (`logs/worker-*.log`: *uv trampoline
+failed to spawn Python child process*, os error 2). Cách tạm cho (2): Start menu ▸ *Stop AHA open* rồi *AHA open*. Script nay khai
+`RedirectionGuard=no`. ✅ Với định danh thử và thư mục Python của `uv` để trống: script cũ thoát mã 7, script đã sửa thoát mã 0, và chương
+trình khởi chạy từ `[Run]` không còn mang cờ.
+
+**Lỗi đã biết của `0.1.0.dev4` trở về trước (gồm bản `dev3` đang công bố), đã sửa ở `0.1.0.dev5` (2026-11-28).** Mở từ
+Start menu thì khi tạo ảnh có một cửa sổ terminal trống bật ra. Lối tắt chạy `pythonw` nên gateway không có console, và Windows cấp cho
+worker của model một cửa sổ hiện hẳn ra. Đừng đóng cửa sổ đó: nó là của worker. Gateway nay chạy bằng `python` với console ẩn, mọi thứ nó
+khởi chạy dùng chung. ✅ Quan sát trên dev4 đã cài: gateway không có console và tiêu đề cửa sổ là `python.exe` của worker.
+
+Nguyên nhân thứ hai, chỉ xảy ra khi `uv` phải tự tải Python (máy chưa có Python): `uv venv` (0.11.21) ghi `venv\Scripts\pythonw.exe` là
+chương trình **loại console**, mà lối tắt lại chạy nó. Trình cài nay để chính Python đó tạo môi trường
+(`uv run --no-project --python 3.12 python -I -m venv`). ✅ Tái hiện với thư mục Python của `uv` để trống: `uv venv` cho `pythonw.exe`
+loại console, lệnh mới cho loại không console; cổng phát hành đã từ chối trình cài còn dùng lệnh cũ.
 
 **Đính chính (2026-11-24).** Các lần chạy smoke đầu khởi động gateway bằng `python -m aha_open.cli` từ bản checkout mã nguồn; `-m` đặt *thư mục hiện tại*
 lên đầu `sys.path`, nên chúng kiểm bản checkout chứ không phải gói đã cài (người dùng không bị ảnh hưởng: lối tắt khởi động trong thư mục cài). Smoke nay chạy mọi
@@ -79,7 +97,10 @@ Mọi bước công khai (đẩy snapshot, GitHub Release) mỗi lần đều l�
 3. **Chạy job thật từ chính file `.exe` (bắt buộc).** `python windows_installer/release_smoke.py --installer dist/AHA-Open-Setup-<phiên bản>.exe
    --weights <thư mục dữ liệu>/models --accept-license qwen-research --accept-license minimax-h3 --confirm-territory` cài file đó vào một thư
    mục tạm sạch, dựng từng engine qua route của trang web và chạy một job thật cho mỗi họ model và loại bản (Qwen INT8, Qwen INT8 ConvRot,
-   MiniMax H3). Cần GPU và trọng số đã có trên đĩa (được hard link, không chép), và từ chối chạy trên máy đã cài AHA open. Xem ba kết quả
+   MiniMax H3). Cần GPU và trọng số đã có trên đĩa (được hard link, không chép), và từ chối chạy trên máy đã cài AHA open. Việc cài và chạy job
+   diễn ra như trên máy **chưa có Python**: `uv` chỉ được dùng Python do nó tải vào một thư mục trống (cần mạng), và lần chạy hỏng nếu gateway
+   được dựng trên Python khác. Đây là mô phỏng, không phải một Windows sạch; nút *Start AHA open now* của wizard không được thử. Gateway được
+   khởi động bằng `pythonw` như lối tắt, và lần chạy hỏng nếu nó không có console (ẩn). Xem ba kết quả
    trong `dist/release-smoke/`. Sau đó `python windows_installer/build_installer.py --check-release v<phiên bản>` phải báo `OK` (từ chối nếu
    trình cài đã dựng lại sau khi chạy job, hoặc thiếu job), và `gh auth status`. `--from-wheel` là cách chạy cho người phát triển, không được tính.
 4. *(công khai)* `python tools/release/snapshot.py OUT_DIR` ghi cây công khai từ `HEAD` (chỉ byte đã commit; nó lỗi nếu một thư mục cấp cao nhất chưa được

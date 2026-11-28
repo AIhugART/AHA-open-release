@@ -6,10 +6,11 @@
 chúng qua một API HTTP chuẩn (`/v1`). Ứng dụng client đầu tiên là **AHA Studio**: AHA Studio gửi yêu cầu tạo ảnh hoặc
 video tới AHA open và nhận kết quả về kho của nó, về Photoshop (AHA Paint), Premiere (AHA Clip) hoặc AHA Workflow.
 
-> **Đừng dùng trình cài `0.1.0.dev2`:** bản đó thiếu mã worker nên Qwen-Image-2.1 ConvRot và MiniMax H3 không chạy được. Dùng
-> `0.1.0.dev3` trở lên; cài đè lên dev2 vẫn giữ model và cấu hình.
+> **Hãy dùng `0.1.0.dev5` trở lên.** Trình cài `dev2` thiếu mã worker (Qwen-Image-2.1 ConvRot và MiniMax H3 không chạy được).
+> Trình cài `dev3` cài thất bại trên máy chưa có Python 3.12 (thấy khi giả lập máy như vậy) và bật cửa sổ terminal khi tạo ảnh.
+> Cài dev5 đè lên bản cũ sẽ giữ model và cấu hình (chưa thử nâng cấp đè lên dev3).
 >
-> **Trạng thái (2026-11-28):** bản pre-release `0.1.0.dev3`, có trình cài Windows. Đã chạy thật trên một máy (RTX 3090 Ti
+> **Trạng thái (2026-11-28):** bản pre-release `0.1.0.dev5`, có trình cài Windows. Đã chạy thật trên một máy (RTX 3090 Ti
 > 24 GiB, Windows): ảnh với Qwen-Image-2.1 và video với MiniMax H3 qua gateway. **Chưa thử:** hồ sơ `lan` từ máy thứ hai và
 > hồ sơ `internet` (cần tài khoản Cloudflare thật). Mức bằng chứng từng phần: [docs/product/05_models.md](docs/vi/product/05_models.md) §3.
 
@@ -23,7 +24,7 @@ video tới AHA open và nhận kết quả về kho của nó, về Photoshop (
    trang hiển thị). Cần GPU NVIDIA từ khoảng 10 GiB VRAM và khoảng 25 GB ổ đĩa trống.
 
 Đã thử thật trên một máy (RTX 3090 Ti, Windows 11): cài, tải model qua trang, sinh ảnh chuẩn (cùng byte với lần đo trước), gỡ cài. **Chưa thử:**
-hộp thoại cài tương tác, cảnh báo SmartScreen, máy chưa có Python. Chưa hỗ trợ macOS ở v1. Chi tiết: [docs/product/06_deployment.md](docs/product/06_deployment.md) mục 0.1.
+hộp thoại cài tương tác, cảnh báo SmartScreen, một máy sạch thật (trường hợp chưa có Python mới được giả lập). Chưa hỗ trợ macOS ở v1. Chi tiết: [docs/product/06_deployment.md](docs/product/06_deployment.md) mục 0.1.
 
 ## Bắt đầu nhanh (từ mã nguồn, cần `uv`)
 

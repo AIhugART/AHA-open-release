@@ -23,4 +23,4 @@
 | Thành phần | Phiên bản |
 |---|---|
 | Đặc tả API | `v1` (bản nháp) |
-| AHA open | chưa phát hành |
+| AHA open | `0.1.0.dev5` (pre-release) |
